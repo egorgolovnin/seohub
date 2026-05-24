@@ -3,6 +3,7 @@ from aiogram import Bot, Dispatcher, Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
 from aiogram.enums import ParseMode
+from aiogram.client.default import DefaultBotProperties
 from app.config import get_settings
 from app.database import async_session
 from app.services.rates import get_rate_for_geo, get_cpa_rates, get_rs_rates, format_rates_message, format_rates_list
@@ -19,7 +20,7 @@ def get_bot() -> Bot:
     global bot
     if bot is None:
         settings = get_settings()
-        bot = Bot(token=settings.bot_token, parse_mode=ParseMode.HTML)
+        bot = Bot(token=settings.bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     return bot
 
 
