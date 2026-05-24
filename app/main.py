@@ -28,7 +28,7 @@ async def lifespan(app: FastAPI):
     # Set webhook for Railway (or use polling for dev)
     if settings.app_env == "production":
         # Webhook mode
-        webhook_url = f"https://your-app.railway.app/webhook"
+        webhook_url = f"https://seohub-production.up.railway.app/webhook"
         await bot.set_webhook(webhook_url)
         logger.info(f"Webhook set: {webhook_url}")
     else:
