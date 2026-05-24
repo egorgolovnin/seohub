@@ -59,7 +59,8 @@ async def webhook(request: Request):
 
 @app.get("/", response_class=HTMLResponse)
 async def home():
-    return HTMLResponse("<h1>SEOhub</h1><p><a href='/rates'>Ставки CPA/RS</a></p>")
+    with open("app/templates/index.html", "r") as f:
+        return HTMLResponse(f.read())
 
 
 @app.get("/rates", response_class=HTMLResponse)

@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SEO Hub</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#050508;--bg2:#0c0c14;--bg3:#13131e;--bg4:#1a1a28;--border:#1e1e30;--bh:#2e2e48;--t:#e4e4f0;--t2:#8585a0;--t3:#4a4a64;--acc:#00e6b8;--acd:#00e6b818;--acg:#00e6b830;--red:#ff3f5e;--redd:#ff3f5e18;--ylw:#ffa630;--ylwd:#ffa63018;--blu:#3f8fff;--blud:#3f8fff18;--prp:#9f5fff;--prpd:#9f5fff18;--org:#ff7a3f;--orgd:#ff7a3f18;--grn:#3fcc7f;--grnd:#3fcc7f18;--r:12px;--rs:8px}
+*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Space Grotesk',sans-serif;background:var(--bg);color:var(--t);overflow-x:hidden}::selection{background:var(--acc);color:#000}
+.nav{position:fixed;top:0;left:0;right:0;z-index:999;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;background:rgba(5,5,8,.9);backdrop-filter:blur(24px);border-bottom:1px solid var(--border)}
+.logo{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:16px;color:var(--acc);cursor:pointer}.logo em{font-style:normal;color:var(--t3);font-weight:400}
+.nr{display:flex;gap:1px;flex-wrap:wrap}.nl{padding:4px 7px;border-radius:var(--rs);font-size:9.5px;font-weight:500;color:var(--t2);cursor:pointer;border:none;background:none;font-family:inherit;transition:all .15s}.nl:hover{color:var(--t);background:var(--bg3)}.nl.on{color:var(--acc);background:var(--acd)}
+.pg{display:none;padding:62px 16px 50px;max-width:1060px;margin:0 auto}.pg.on{display:block}
+h1.pt{font-size:22px;font-weight:700;letter-spacing:-.5px;margin-bottom:4px}.ps{color:var(--t2);font-size:13px;margin-bottom:16px;line-height:1.5}
+.card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:8px}.card:hover{border-color:var(--bh)}.card-f{border-color:var(--acg);background:linear-gradient(135deg,var(--bg3),var(--acd))}
+.btn{font-family:inherit;font-size:12px;font-weight:600;padding:8px 16px;border-radius:var(--rs);border:none;cursor:pointer;transition:all .15s}.btn-p{background:var(--acc);color:#000}.btn-p:hover{background:#00f5c8}.btn-s{background:var(--bg4);color:var(--t);border:1px solid var(--border)}.btn-s:hover{border-color:var(--acc);color:var(--acc)}
+.tag{display:inline-block;padding:2px 7px;border-radius:16px;font-size:10px;font-weight:500;margin:1px}.tag-b{background:var(--blud);color:var(--blu)}.tag-g{background:var(--grnd);color:var(--grn)}.tag-p{background:var(--prpd);color:var(--prp)}.tag-o{background:var(--orgd);color:var(--org)}.tag-r{background:var(--redd);color:var(--red)}.tag-y{background:var(--ylwd);color:var(--ylw)}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+@media(max-width:700px){.g2,.g3,.ecards{grid-template-columns:1fr!important;flex-direction:column}}
+.badge{display:inline-flex;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600}.badge-g{background:var(--grnd);color:var(--grn)}.badge-y{background:var(--ylwd);color:var(--ylw)}.badge-r{background:var(--redd);color:var(--red)}
+.sr{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px}.sr-l{color:var(--t2)}.sr-v{font-weight:600;font-family:'JetBrains Mono',monospace}
+table{width:100%;border-collapse:collapse;font-size:12px}th{text-align:left;padding:6px 8px;color:var(--t3);font-weight:500;border-bottom:1px solid var(--border);font-size:10px;text-transform:uppercase;letter-spacing:.5px}td{padding:6px 8px;border-bottom:1px solid var(--border)}tr:hover td{background:var(--bg4)}
+.tabs{display:flex;gap:2px;margin-bottom:12px;border-bottom:1px solid var(--border);padding-bottom:2px;flex-wrap:wrap}.tab{padding:5px 10px;font-size:10px;font-weight:500;color:var(--t2);cursor:pointer;border-radius:var(--rs) var(--rs) 0 0;border:none;background:none;font-family:inherit}.tab.on{color:var(--acc);border-bottom:2px solid var(--acc)}
+.sb{position:relative;margin-bottom:12px}.sb input{padding:9px 12px 9px 30px;font-size:13px;height:38px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);color:var(--t);font-family:inherit;width:100%;outline:none}.sb input:focus{border-color:var(--acc)}.sb::before{content:"⌕";position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--t3)}
+.fade{animation:fi .25s ease}@keyframes fi{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.entry{min-height:calc(100vh - 62px);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding-bottom:30px}
+.entry h1{font-size:32px;font-weight:700;letter-spacing:-1.2px;margin-bottom:6px;line-height:1.15}.entry h1 span{color:var(--acc)}
+.entry .esub{color:var(--t2);font-size:13px;max-width:560px;margin:0 auto 32px;line-height:1.7}
+.ecards{display:flex;gap:12px;max-width:720px;width:100%}
+.ec{flex:1;padding:22px 18px;border-radius:14px;cursor:pointer;text-align:left;position:relative;overflow:hidden}.ec::before{content:'';position:absolute;inset:0;border-radius:14px;border:1px solid var(--border);transition:border-color .2s}.ec:hover::before{border-color:var(--acc)}
+.ec-s{background:linear-gradient(160deg,var(--bg3),var(--acd))}.ec-a{background:linear-gradient(160deg,var(--bg3),var(--orgd))}
+.ec-t{font-size:16px;font-weight:700;margin-bottom:3px}.ec-s .ec-t{color:var(--acc)}.ec-a .ec-t{color:var(--org)}
+.fl{list-style:none;padding:0}.fl li{padding:2px 0;font-size:11px;color:var(--t2);line-height:1.4}.fl li::before{content:"→ ";color:var(--acc);font-weight:600}.ec-a .fl li::before{color:var(--org)}
+.ec-b{margin-top:12px;padding:8px;border-radius:var(--rs);border:none;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer;width:100%}.ec-s .ec-b{background:var(--acc);color:#000}.ec-a .ec-b{background:var(--org);color:#000}
+.cw{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);height:420px;display:flex;flex-direction:column;overflow:hidden}
+.ch{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}.ca{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px}.ca-s{background:var(--acd)}.ca-a{background:var(--orgd)}
+.cn{font-weight:600;font-size:12px}.cr{font-size:9px;color:var(--t3)}
+.cb{flex:1;overflow-y:auto;padding:12px;scroll-behavior:smooth}
+.cf{padding:8px;border-top:1px solid var(--border);display:flex;gap:5px}.cf input{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);padding:8px 10px;color:var(--t);font-family:inherit;font-size:11px;outline:none}.cf input:focus{border-color:var(--acc)}.cf button{background:var(--acc);color:#000;border:none;border-radius:var(--rs);width:34px;cursor:pointer;font-size:14px;font-weight:700}
+.m{margin-bottom:8px;display:flex}.m-b{justify-content:flex-start}.m-u{justify-content:flex-end}
+.mb{background:var(--bg3);border-radius:2px var(--rs) var(--rs) var(--rs);padding:8px 12px;max-width:88%;font-size:11px;line-height:1.6}
+.mu{background:var(--acd);border:1px solid var(--acg);border-radius:var(--rs) 2px var(--rs) var(--rs);padding:8px 12px;max-width:80%;font-size:11px}
+.qbs{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}.qb{padding:4px 9px;border-radius:14px;font-size:9px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--bg3);color:var(--t2);font-family:inherit}.qb:hover{border-color:var(--acc);color:var(--acc)}
+.tc{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:8px}.tc.ft{border-color:var(--acg);background:linear-gradient(135deg,var(--bg3),var(--acd))}
+.tc-t{font-size:15px;font-weight:700;margin-bottom:2px}.tc-d{color:var(--t2);font-size:11px;line-height:1.5}
+.tc-pr{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:16px;color:var(--acc)}.tc-pp{font-size:9px;color:var(--t3);font-weight:400}
+.tc-pain{background:var(--redd);border-radius:var(--rs);padding:8px 10px;margin-top:8px;font-size:10px;color:var(--t2)}.tc-pain b{color:var(--red)}
+.tc-ok{background:var(--grnd);border-radius:var(--rs);padding:8px 10px;margin-top:5px;font-size:10px;color:var(--t2)}.tc-ok b{color:var(--grn)}
+.fr{margin-bottom:8px}.fr label{display:block;font-size:9px;color:var(--t3);margin-bottom:2px;text-transform:uppercase;letter-spacing:.5px}.fr input,.fr select,.fr textarea{background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);padding:7px 9px;color:var(--t);font-family:inherit;font-size:11px;width:100%;outline:none}.fr textarea{min-height:45px;resize:vertical}
+.trust{background:var(--bg4);border:1px solid var(--border);border-radius:var(--rs);padding:10px 12px;font-size:10px;color:var(--t2);line-height:1.5}.trust b{color:var(--ylw)}
+.listing-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}.listing-card:hover{border-color:var(--bh)}
+.blog-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:8px;cursor:pointer}.blog-card:hover{border-color:var(--bh)}
+.blog-tag{display:inline-block;padding:2px 6px;border-radius:10px;font-size:9px;font-weight:500;margin-right:4px}
+.soon{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:600;background:var(--ylwd);color:var(--ylw);margin-left:6px}
+.hero-note{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:14px 18px;margin-top:16px;font-size:12px;color:var(--t2);line-height:1.6;max-width:600px;text-align:left}
+.hero-note b{color:var(--acc)}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="logo" onclick="go('home')">SEO<em>hub</em></div>
+  <div class="nr">
+    <button class="nl on" onclick="go('home')">Главная</button>
+    <button class="nl" onclick="go('seoBot')">SEO-бот</button>
+    <button class="nl" onclick="go('amBot')">AM-бот</button>
+    <button class="nl" onclick="go('tools')">Тех.инструменты</button>
+    <button class="nl" onclick="go('con')">Консьерж</button>
+    <button class="nl" onclick="go('union')">Профсоюз</button>
+    <button class="nl" onclick="go('geo')">Ставки</button>
+    <button class="nl" onclick="go('lookup')">Пробей сайт</button>
+    <button class="nl" onclick="go('sites')">Купля/продажа</button>
+    <button class="nl" onclick="go('kb')">База знаний</button>
+    <button class="nl" onclick="go('blog')">Блог</button>
+    <button class="nl" onclick="go('jobs')">Вакансии</button>
+    <button class="nl" onclick="go('pp')">Рейтинг ПП</button>
+  </div>
+</nav>
+
+<!-- HOME -->
+<div id="home" class="pg on">
+<div class="entry">
+  <h1>Всё для <span>iGaming SEO</span><br>в одном месте</h1>
+  <p class="esub">SEOhub — платформа, которую SEO-шники сделали для себя.<br><br>Мы собрали, структурировали и превратили в единую систему данные из <strong>3M+ сообщений</strong> профильных чатов и <strong>50+ ключевых сайтов</strong> индустрии.</p>
+  <div class="ecards">
+    <div class="ec ec-s" onclick="go('seoBot')">
+      <div style="font-size:28px;margin-bottom:8px">👨‍💻</div>
+      <div class="ec-t">Я SEO-шник</div>
+      <ul class="fl">
+        <li>Доп. монетизация для твоего трафика</li>
+        <li>Найди решение проблемы: DMCA-щит, индексатор, AI-контент</li>
+        <li>Подключи консьержа — он заберёт коммуникацию с афф-менеджерами и выдаст готовое предложение</li>
+        <li>Проверь рыночные ставки CPA/RS — не продешеви</li>
+        <li>Проверь ПП — кто шейвит и с кем лучше не работать</li>
+        <li>Продай или купи сайт</li>
+        <li>Найди линки для своего сайта</li>
+      </ul>
+      <button class="ec-b">Открыть бот →</button>
+    </div>
+    <div class="ec ec-a" onclick="go('amBot')">
+      <div style="font-size:28px;margin-bottom:8px">💼</div>
+      <div class="ec-t">Я афф-менеджер</div>
+      <ul class="fl">
+        <li>Пробей сайт — узнай владельца, команду, ГЕО</li>
+        <li>Каталог 280+ SEO-команд с фильтрами</li>
+        <li>Антифрод — проверь аффилиата по открытым отзывам</li>
+        <li>Отправь заявку SEO-шнику с 99% ответом</li>
+        <li>Рыночные ставки CPA/RS — не переплати</li>
+      </ul>
+      <button class="ec-b">Открыть бот →</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- SEO BOT -->
+<div id="seoBot" class="pg">
+  <h1 class="pt">👨‍💻 Бот для SEO-шника</h1>
+  <p class="ps">Ответ из базы 3M+ сообщений</p>
+  <div class="cw"><div class="ch"><div class="ca ca-s">🤖</div><div><div class="cn">SEOhub</div><div class="cr">для вебмастеров</div></div></div><div class="cb" id="sCB"></div><div class="cf"><input placeholder="ГЕО, оффер, ПП, проблема..." id="sI" onkeydown="if(event.key==='Enter')sS()"><button onclick="sS()">→</button></div></div>
+  <div class="qbs"><button class="qb" onclick="qS('Хочу доп. монетизацию')">💰 Монетизация</button><button class="qb" onclick="qS('Германия')">🇩🇪 DE</button><button class="qb" onclick="qS('Royal Partners шейвят?')">⚠️ ПП</button><button class="qb" onclick="qS('Какой хостинг от DMCA?')">🛡 DMCA</button><button class="qb" onclick="qS('Конверсия упала')">📉 CR</button><button class="qb" onclick="qS('Хочу продать сайт')">🏷 Сайт</button><button class="qb" onclick="qS('Нужны линки')">🔗 Линки</button></div>
+</div>
+
+<!-- AM BOT -->
+<div id="amBot" class="pg">
+  <h1 class="pt">💼 Бот для афф-менеджера</h1>
+  <p class="ps">Найди команду, проверь сайт, узнай ставки</p>
+  <div class="cw"><div class="ch"><div class="ca ca-a">🤖</div><div><div class="cn">SEOhub</div><div class="cr">для афф-менеджеров</div></div></div><div class="cb" id="aCB"></div><div class="cf"><input placeholder="Домен, ГЕО, запрос..." id="aI" onkeydown="if(event.key==='Enter')aS()"><button onclick="aS()">→</button></div></div>
+  <div class="qbs"><button class="qb" onclick="qA('casino.org')">🔍 casino.org</button><button class="qb" onclick="qA('SEO-команды на DE')">🇩🇪 DE</button><button class="qb" onclick="qA('Средняя ставка на UK')">💰 Ставки</button><button class="qb" onclick="qA('Отправить заявку')">🎯 Заявка</button></div>
+</div>
+
+<!-- TECH TOOLS (merged: tools + marketplace + our products) -->
+<div id="tools" class="pg">
+  <h1 class="pt">Тех. инструменты</h1>
+  <p class="ps">Доп. заработок и технические решения. Все в одном месте.</p>
+
+  <h2 style="font-size:16px;font-weight:700;color:var(--acc);margin-bottom:10px">💰 Доп. заработок</h2>
+  <div class="tc ft">
+    <div style="font-size:15px;font-weight:700">Трафик есть, а заработка не так много?</div>
+    <div class="tc-d">Подключи дополнительную монетизацию</div>
+    <div class="g3" style="margin-top:10px">
+      <div class="card" style="padding:10px"><div style="font-weight:700;font-size:13px;color:var(--acc);margin-bottom:3px">BetBuddy Link</div><div style="font-size:10px;color:var(--t2)">Pop-up → TG → менеджер → FTD ×3-5. Платим за диалог.</div><button class="btn btn-p" style="margin-top:6px;width:100%;font-size:10px">Подключить →</button></div>
+      <div class="card" style="padding:10px"><div style="font-weight:700;font-size:13px;color:var(--prp);margin-bottom:3px">Retention</div><div style="font-size:10px;color:var(--t2)">Удерживаем игроков через ТГ. RevShare растёт без усилий.</div><button class="btn btn-s" style="margin-top:6px;width:100%;font-size:10px">Узнать →</button></div>
+      <div class="card" style="padding:10px"><div style="font-weight:700;font-size:13px;color:var(--ylw);margin-bottom:3px">Баннерные сетки</div><div style="font-size:10px;color:var(--t2)">Монетизируй некoнвертящийся трафик.</div><button class="btn btn-s" style="margin-top:6px;width:100%;font-size:10px">Подключить →</button></div>
+    </div>
+  </div>
+  <div class="tc"><div style="display:flex;justify-content:space-between"><div><div class="tc-t">🔬 Антишейв-чекер</div><div class="tc-d">Сквозная атрибуция spin/bet/win. Видишь шейв в реалтайме.</div></div><div style="text-align:right"><div class="tc-pr">$49<span class="tc-pp">/мес</span></div></div></div><button class="btn btn-p" style="margin-top:6px;font-size:10px">Подключить →</button></div>
+
+  <h2 style="font-size:16px;font-weight:700;color:var(--blu);margin:18px 0 10px">🛠 Технические инструменты</h2>
+  <div class="tc"><div style="display:flex;justify-content:space-between"><div><div class="tc-t">🤖 AI-генератор контента</div><div class="tc-d">Обзоры казино, слоты, бонусы — bulk, 5 языков, обход детекции</div></div><div style="text-align:right"><div class="tc-pr">$29<span class="tc-pp">/мес</span></div></div></div><div class="tc-pain"><b>Боль:</b> 100 страниц = $1500 + месяц. GPT палится.</div><div class="tc-ok"><b>Решение:</b> 100 стр за 2ч, $29/мес.</div><button class="btn btn-p" style="margin-top:6px;font-size:10px">5 страниц бесплатно →</button></div>
+  <div class="tc"><div style="display:flex;justify-content:space-between"><div><div class="tc-t">🛡 DMCA-щит</div><div class="tc-d">Мониторинг 24/7 + авто counter-notice + алерт в ТГ</div></div><div style="text-align:right"><div class="tc-pr">$19<span class="tc-pp">/мес</span></div></div></div><button class="btn btn-p" style="margin-top:6px;font-size:10px">Подключить →</button></div>
+  <div class="tc"><div style="display:flex;justify-content:space-between"><div><div class="tc-t">⚡ Индексатор</div><div class="tc-d">ТГ-бот: URL → Google/Яндекс за минуты</div></div><div style="text-align:right"><div class="tc-pr">$9<span class="tc-pp">/мес</span></div></div></div><button class="btn btn-p" style="margin-top:6px;font-size:10px">10 URL бесплатно →</button></div>
+  <div class="tc"><div style="display:flex;justify-content:space-between"><div><div class="tc-t">🪞 Генератор зеркал</div><div class="tc-d">РКН забанил → авто-зеркало + 301 + клоака</div></div><div style="text-align:right"><div class="tc-pr">$39<span class="tc-pp">/мес</span></div></div></div><button class="btn btn-p" style="margin-top:6px;font-size:10px">Подключить →</button></div>
+  <div class="tc"><div style="display:flex;justify-content:space-between"><div><div class="tc-t">📊 iOffers</div><div class="tc-d">Готовый продукт для управления офферами на ваших сайтах</div></div><div style="text-align:right"><div class="tc-pr" style="color:var(--grn)">Free</div></div></div><button class="btn btn-p" style="margin-top:6px;font-size:10px">Подключить →</button></div>
+
+  <h2 style="font-size:16px;font-weight:700;color:var(--org);margin:18px 0 10px">🏪 Сервисы и инструменты</h2>
+  <div class="tabs" id="mTabs">
+    <button class="tab on" onclick="mC('hosting',this)">🖥 Хостинг</button>
+    <button class="tab" onclick="mC('links',this)">🔗 Линки</button>
+    <button class="tab" onclick="mC('domains',this)">🌐 Домены</button>
+    <button class="tab" onclick="mC('tds',this)">🔀 TDS</button>
+    <button class="tab" onclick="mC('seo',this)">📊 SEO</button>
+    <button class="tab" onclick="mC('vpn',this)">🔒 VPN</button>
+  </div>
+  <div id="mL"></div>
+</div>
+
+<!-- CONCIERGE -->
+<div id="con" class="pg">
+  <h1 class="pt">🎯 Консьерж</h1>
+  <div class="card card-f" style="margin-bottom:14px">
+    <p style="font-size:13px;color:var(--t);line-height:1.6"><strong style="color:var(--acc)">Для SEO-шников:</strong> Устал от постоянных входящих некомпетентных сообщений? Мы решили эту проблему. Консьерж отдаст тебе готовую заявку со всеми основными данными для запуска — никаких пустых разговоров.</p>
+    <p style="font-size:13px;color:var(--t);line-height:1.6;margin-top:8px"><strong style="color:var(--org)">Для афф-менеджеров:</strong> Отправь заявку с 99% ответом. Забудь о 1000 пингов одним и тем же людям.</p>
+  </div>
+  <div style="display:flex;gap:4px;margin-bottom:12px">
+    <button class="btn btn-p" id="c1" onclick="cT('seo')" style="flex:1;font-size:10px">👨‍💻 Ищу оффер</button>
+    <button class="btn btn-s" id="c2" onclick="cT('am')" style="flex:1;font-size:10px">💼 Ищу SEO-команду</button>
+    <button class="btn btn-s" id="c3" onclick="cT('listing')" style="flex:1;font-size:10px">📋 Listing Fee</button>
+  </div>
+  <div id="cSF" class="card"><h3 style="margin:0 0 6px;font-size:13px">Расскажи о трафике</h3><div class="g2"><div class="fr"><label>Вертикаль</label><select><option>iGaming</option><option>Betting</option><option>Crypto</option></select></div><div class="fr"><label>ГЕО</label><input placeholder="DE, CA..."></div></div><div class="g2"><div class="fr"><label>Объём</label><select><option>до 1K</option><option>1K-10K</option><option>10K+</option></select></div><div class="fr"><label>Модель</label><select><option>CPA</option><option>RevShare</option><option>Hybrid</option></select></div></div><div class="g2"><div class="fr"><label>Мин. ставка</label><input placeholder="$50"></div><div class="fr"><label>Telegram</label><input placeholder="@username"></div></div><button class="btn btn-p" onclick="alert('✅ Подберём → ТГ 24ч')">Найти оффер →</button></div>
+  <div id="cAF" style="display:none" class="card"><h3 style="margin:0 0 6px;font-size:13px">Опишите что ищете</h3><div class="g2"><div class="fr"><label>Вертикаль</label><select><option>iGaming</option><option>Betting</option></select></div><div class="fr"><label>ГЕО</label><input placeholder="DE, CA..."></div></div><div class="g2"><div class="fr"><label>Модель</label><select><option>CPA</option><option>RevShare</option><option>Listing Fee</option></select></div><div class="fr"><label>Бюджет</label><input placeholder="$50-200"></div></div><div class="g2"><div class="fr"><label>Telegram</label><input placeholder="@username"></div><div class="fr"><label>Имя</label><input></div></div><button class="btn btn-p" onclick="alert('✅ Подберём → ТГ 24ч')">Найти команду →</button></div>
+  <div id="cLF" style="display:none" class="card"><h3 style="margin:0 0 6px;font-size:13px">Листинг-биржа</h3><p style="font-size:10px;color:var(--t2);margin-bottom:8px">Покупай или продавай места на SEO-сайтах.</p><div style="display:flex;gap:4px;margin-bottom:8px"><button class="btn btn-s" style="flex:1;font-size:10px">🛒 Купить</button><button class="btn btn-s" style="flex:1;font-size:10px">💰 Продать</button></div><div class="g2"><div class="fr"><label>Сайт / бренд</label><input></div><div class="fr"><label>ГЕО</label><input></div></div><div class="g2"><div class="fr"><label>Бюджет</label><input placeholder="$500-2000/мес"></div><div class="fr"><label>Telegram</label><input placeholder="@"></div></div><button class="btn btn-p" onclick="alert('✅ → ТГ 24ч')">Отправить →</button></div>
+</div>
+
+<!-- UNION -->
+<div id="union" class="pg">
+  <h1 class="pt">🛡 SEO-профсоюз</h1>
+  <p class="ps">Защита интересов. Проверка честности ПП. Арбитраж споров.</p>
+  <div class="card card-f">
+    <div class="tc-t" style="color:var(--acc)">Тебя обманули? Проверим.</div>
+    <p style="font-size:11px;color:var(--t2);margin:6px 0;line-height:1.5">Обработано <strong style="color:var(--acc)">2kk+ FTD</strong>. Мы знаем нормальную конверсию, retention и GGR.</p>
+    <div class="g2" style="margin-top:10px">
+      <div class="card" style="padding:10px"><div style="font-weight:600;font-size:12px;margin-bottom:3px">📊 Проверь стату</div><p style="font-size:10px;color:var(--t2)">Загрузи данные из ПП. Сравним с базой.</p></div>
+      <div class="card" style="padding:10px"><div style="font-weight:600;font-size:12px;margin-bottom:3px">⚖️ Арбитраж</div><p style="font-size:10px;color:var(--t2)">Претензия → проверка → к бренду → решаем или публикуем. 5% от суммы.</p></div>
+    </div>
+    <div class="g2" style="margin-top:6px">
+      <div class="card" style="padding:10px"><div style="font-weight:600;font-size:12px;margin-bottom:3px">📢 Публичный рейтинг</div><p style="font-size:10px;color:var(--t2)">Вердикт влияет на рейтинг. Пуш всем подписчикам.</p></div>
+      <div class="card" style="padding:10px"><div style="font-weight:600;font-size:12px;margin-bottom:3px">📣 Коллективный голос</div><p style="font-size:10px;color:var(--t2)">Кейс через комьюнити и чаты. Узнает весь рынок.</p></div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:6px"><h3 style="margin:0 0 6px;font-size:12px">Подать заявку</h3><div class="g2"><div class="fr"><label>ПП</label><input placeholder="Royal Partners..."></div><div class="fr"><label>Telegram</label><input placeholder="@"></div></div><div class="fr"><label>Что произошло?</label><textarea placeholder="Срезали GGR, задержка выплат..."></textarea></div><button class="btn btn-p" onclick="alert('✅ Принята')">Отправить →</button></div>
+</div>
+
+<!-- GEO RATES -->
+<div id="geo" class="pg">
+  <h1 class="pt">🌍 Узнай реальную ставку</h1>
+  <p class="ps">Реальные CPA и RevShare из кабинетов 4 партнёрских сетей. 3,900+ офферов, 67 ГЕО.</p>
+  <div class="tabs"><button class="tab on" onclick="gTab('cpa',this)">CPA ($)</button><button class="tab" onclick="gTab('rs',this)">RevShare (%)</button></div>
+  <div class="sb"><input placeholder="Фильтр по ГЕО..." oninput="gFilt(this.value)"></div>
+  <div id="cT2"><table><thead><tr><th>ГЕО</th><th>Мин</th><th>Средн</th><th>Макс</th></tr></thead><tbody id="cB2"></tbody></table></div>
+  <div id="rT2" style="display:none"><table><thead><tr><th>ГЕО</th><th>Мин</th><th>Средн</th><th>Макс</th></tr></thead><tbody id="rB2"></tbody></table></div>
+</div>
+
+<!-- LOOKUP -->
+<div id="lookup" class="pg">
+  <h1 class="pt">🔍 Пробей сайт</h1>
+  <p class="ps">Вбей домен — узнай владельца</p>
+  <div class="sb"><input placeholder="casino.org, sloterman.com..." id="lI" onkeydown="if(event.key==='Enter')lu()"></div>
+  <div id="lR" style="display:none" class="card fade"></div>
+  <div id="lN" style="display:none" class="card fade"><p style="color:var(--ylw);font-size:12px">⚠️ Не найден. <a href="#" style="color:var(--acc)">Добавить</a></p></div>
+  
+  <h3 style="font-size:13px;color:var(--t3);margin-top:20px;margin-bottom:8px">Примеры из базы:</h3>
+  <div class="listing-card" style="cursor:pointer" onclick="document.getElementById('lI').value='casino.org';lu()">
+    <div><div style="font-weight:600;font-size:13px">casino.org</div><div style="font-size:10px;color:var(--t2)">Legend Corp · Global · Hybrid</div></div>
+    <div style="color:var(--t3);font-size:18px">→</div>
+  </div>
+  <div class="listing-card" style="cursor:pointer" onclick="document.getElementById('lI').value='sloterman.com';lu()">
+    <div><div style="font-weight:600;font-size:13px">sloterman.com</div><div style="font-size:10px;color:var(--t2)">Big (@bigaffiliate) · RU · CPA/RS</div></div>
+    <div style="color:var(--t3);font-size:18px">→</div>
+  </div>
+  <div class="listing-card" style="cursor:pointer" onclick="document.getElementById('lI').value='casinojager.com';lu()">
+    <div><div style="font-weight:600;font-size:13px">casinojager.com</div><div style="font-size:10px;color:var(--t2)">Affilino · DE/DACH · Listing Fee</div></div>
+    <div style="color:var(--t3);font-size:18px">→</div>
+  </div>
+  <div class="listing-card" style="cursor:pointer" onclick="document.getElementById('lI').value='rhino.bet';lu()">
+    <div><div style="font-weight:600;font-size:13px">rhino.bet</div><div style="font-size:10px;color:var(--t2)">SharedBet (@djntel) · UK · RevShare</div></div>
+    <div style="color:var(--t3);font-size:18px">→</div>
+  </div>
+  <div class="listing-card" style="cursor:pointer" onclick="document.getElementById('lI').value='speletajiem.com';lu()">
+    <div><div style="font-weight:600;font-size:13px">speletajiem.com</div><div style="font-size:10px;color:var(--t2)">SEOBrothers · LV/CZ · RevShare</div></div>
+    <div style="color:var(--t3);font-size:18px">→</div>
+  </div>
+</div>
+
+<!-- BUY/SELL SITES -->
+<div id="sites" class="pg">
+  <h1 class="pt">🏷 Купля/продажа сайтов</h1>
+  <p class="ps">Продай или купи SEO-сайт. Комиссия 5-10%.</p>
+  <div style="display:flex;gap:4px;margin-bottom:12px">
+    <button class="btn btn-p" style="flex:1;font-size:10px" onclick="document.getElementById('sellForm').style.display='block';document.getElementById('siteListings').style.display='none'">💰 Выставить</button>
+    <button class="btn btn-s" style="flex:1;font-size:10px" onclick="document.getElementById('sellForm').style.display='none';document.getElementById('siteListings').style.display='block'">🛒 Объявления</button>
+  </div>
+  <div id="siteListings">
+    <div class="listing-card"><div><div style="font-weight:600;font-size:13px">casino-review-de.com</div><div style="font-size:10px;color:var(--t2)">DE · 3,200 уник/мес · $450/мес (RS)</div></div><div><div style="font-weight:700;font-size:14px;color:var(--acc)">$5,500</div></div></div>
+    <div class="listing-card"><div><div style="font-weight:600;font-size:13px">best-slots-ru.com</div><div style="font-size:10px;color:var(--t2)">RU · 8,500 уник/мес · $800/мес (CPA)</div></div><div><div style="font-weight:700;font-size:14px;color:var(--acc)">$12,000</div></div></div>
+    <div class="listing-card"><div><div style="font-weight:600;font-size:13px">casinobonuses-latam.com</div><div style="font-size:10px;color:var(--t2)">Latam · 1,800 уник/мес · $200/мес</div></div><div><div style="font-weight:700;font-size:14px;color:var(--acc)">$2,800</div></div></div>
+    <p style="font-size:9px;color:var(--t3);margin-top:6px">* Примеры. Данные верифицируются.</p>
+  </div>
+  <div id="sellForm" style="display:none" class="card"><h3 style="margin:0 0 6px;font-size:13px">Выставить на продажу</h3><div class="g2"><div class="fr"><label>Домен</label><input placeholder="mysite.com"></div><div class="fr"><label>ГЕО</label><input></div></div><div class="g2"><div class="fr"><label>Трафик</label><input placeholder="5000 уник/мес"></div><div class="fr"><label>Доход</label><input placeholder="$500/мес"></div></div><div class="g2"><div class="fr"><label>Цена</label><input placeholder="$8,000"></div><div class="fr"><label>Telegram</label><input placeholder="@"></div></div><button class="btn btn-p" onclick="alert('✅ На модерации')">Опубликовать →</button></div>
+</div>
+
+<!-- KNOWLEDGE BASE -->
+<div id="kb" class="pg">
+  <h1 class="pt">📚 База знаний</h1>
+  <p class="ps">Ответы на основные вопросы</p>
+  <div class="sb"><input placeholder="Поиск..." oninput="kbF(this.value)"></div>
+  <div id="kbL"></div>
+</div>
+
+<!-- BLOG -->
+<div id="blog" class="pg">
+  <h1 class="pt">📝 Блог</h1>
+  
+  <div class="card card-f" style="margin-bottom:14px">
+    <div style="font-size:15px;font-weight:700;color:var(--acc);margin-bottom:6px">📡 Откуда контент</div>
+    <p style="font-size:13px;color:var(--t);line-height:1.6">Мы парсим и обрабатываем <strong>50+ SEO-каналов</strong> в Telegram в реальном времени. Находим решения, инсайты и тренды — и публикуем в формате коротких статей.</p>
+    <p style="font-size:12px;color:var(--t2);margin-top:6px">Подписывайся на ТГ-канал <strong style="color:var(--acc)">@seohub_blog</strong> — там то же самое, но в ленте.</p>
+  </div>
+
+  <div class="blog-card"><span class="blog-tag" style="background:var(--redd);color:var(--red)">DMCA</span><span class="blog-tag" style="background:var(--blud);color:var(--blu)">Гайд</span><div style="font-weight:600;font-size:13px;margin-top:4px">Как оспорить фейковый DMCA в Google: пошаговый гайд</div><div style="font-size:10px;color:var(--t3);margin-top:3px">3 мая 2026 · 5 мин</div></div>
+  <div class="blog-card"><span class="blog-tag" style="background:var(--ylwd);color:var(--ylw)">Апдейт</span><div style="font-weight:600;font-size:13px;margin-top:4px">Google March 2026 Core Update: что изменилось для гемблинга</div><div style="font-size:10px;color:var(--t3);margin-top:3px">28 апр 2026 · 3 мин</div></div>
+  <div class="blog-card"><span class="blog-tag" style="background:var(--grnd);color:var(--grn)">Кейс</span><div style="font-weight:600;font-size:13px;margin-top:4px">Как SEO-шник вернул $4,200 через профсоюз</div><div style="font-size:10px;color:var(--t3);margin-top:3px">25 апр 2026 · 4 мин</div></div>
+  <div class="blog-card"><span class="blog-tag" style="background:var(--prpd);color:var(--prp)">Решение</span><div style="font-weight:600;font-size:13px;margin-top:4px">5 способов ускорить индексацию нового сайта в 2026</div><div style="font-size:10px;color:var(--t3);margin-top:3px">20 апр 2026 · 3 мин</div></div>
+  <div class="blog-card"><span class="blog-tag" style="background:var(--orgd);color:var(--org)">Рынок</span><div style="font-weight:600;font-size:13px;margin-top:4px">РКН + ФЗ-115: что ждёт RU гемблинг-SEO</div><div style="font-size:10px;color:var(--t3);margin-top:3px">15 апр 2026 · 6 мин</div></div>
+  <div class="blog-card"><span class="blog-tag" style="background:var(--blud);color:var(--blu)">Гайд</span><div style="font-weight:600;font-size:13px;margin-top:4px">Выход на бурж: DE/DACH для начинающих</div><div style="font-size:10px;color:var(--t3);margin-top:3px">10 апр 2026 · 8 мин</div></div>
+</div>
+
+<!-- JOBS (coming soon) -->
+<div id="jobs" class="pg">
+  <h1 class="pt">💼 Вакансии <span class="soon">🔜 Скоро</span></h1>
+  <p class="ps">SEO-шники ищут исполнителей. Исполнители ищут проекты.</p>
+  <div class="card" style="text-align:center;padding:30px">
+    <div style="font-size:36px;margin-bottom:10px">🚧</div>
+    <div style="font-size:15px;font-weight:600;margin-bottom:6px">Раздел в разработке</div>
+    <p style="font-size:12px;color:var(--t2)">Копирайтеры, SEO-специалисты, разработчики — скоро здесь.<br>Подпишись на <strong style="color:var(--acc)">@seohub_blog</strong> чтобы узнать о запуске.</p>
+  </div>
+</div>
+
+<!-- PP RATING (coming soon) -->
+<div id="pp" class="pg">
+  <h1 class="pt">⚖️ Рейтинг ПП <span class="soon">🔜 Скоро</span></h1>
+  <p class="ps">% негатива из реальных чатов</p>
+  <div class="trust" style="margin-bottom:10px"><b>📊 Как формируется:</b> Статистика из реальных чатов, обновляется в реальном времени. Рейтинг не покупается — только факты от SEO-шников.</div>
+  <div class="card" style="text-align:center;padding:30px">
+    <div style="font-size:36px;margin-bottom:10px">🚧</div>
+    <div style="font-size:15px;font-weight:600;margin-bottom:6px">Рейтинг в разработке</div>
+    <p style="font-size:12px;color:var(--t2)">Собираем данные. Первая версия — скоро.<br>Подпишись на <strong style="color:var(--acc)">@seohub_blog</strong></p>
+  </div>
+</div>
+
+<script>
+const S={"casino.org":{t:"Legend Corp",c:"—",g:"Global",v:"iGaming",m:"Hybrid",o:["casinoonline.de"]},"cardschat.com":{t:"Gotec",c:"—",g:"Global",v:"Poker",m:"CPA/RS",o:["covers.com"]},"sloterman.com":{t:"Big (@bigaffiliate)",c:"@bigaffiliate",g:"RU",v:"iGaming",m:"CPA/RS",o:["bigaff.ru"]},"casinojager.com":{t:"Affilino",c:"—",g:"DE/DACH",v:"iGaming",m:"Listing",o:[]},"seomoneymaker.ru":{t:"STRIJ",c:"@STRIJs",g:"RU",v:"iGaming",m:"—",o:[]},"pokerscout.com":{t:"Finixio",c:"—",g:"Global",v:"Poker",m:"CPA",o:["gameshub.com"]},"rhino.bet":{t:"SharedBet",c:"@djntel",g:"UK",v:"Betting",m:"RS",o:["nrg.bet"]},"muduck.biz":{t:"@igamed",c:"@igamed",g:"RU",v:"iGaming",m:"CPA/RS",o:[]},"speletajiem.com":{t:"SEOBrothers",c:"@playermediasupport",g:"LV/CZ",v:"iGaming",m:"RS",o:["ceskekasino.com"]},"kongebonus.com":{t:"Wedia Group",c:"Nathalie",g:"NO",v:"iGaming",m:"Hybrid",o:[]},"bluff.com":{t:"Bluff Corp",c:"@onlinezra",g:"Global",v:"Crypto",m:"CPA/RS",o:[]}};
+const CP=[{g:"NL",k:"nl",mn:120,av:330,mx:650},{g:"DK",k:"dk",mn:130,av:300,mx:560},{g:"NO",k:"no",mn:130,av:300,mx:400},{g:"CH",k:"ch",mn:120,av:290,mx:520},{g:"IE",k:"ie",mn:130,av:280,mx:500},{g:"DE",k:"de",mn:120,av:260,mx:550},{g:"SE",k:"se",mn:130,av:260,mx:400},{g:"AT",k:"at",mn:130,av:260,mx:400},{g:"AE",k:"ae",mn:200,av:250,mx:300},{g:"BE",k:"be",mn:160,av:250,mx:550},{g:"SA",k:"sa",mn:150,av:250,mx:380},{g:"AU",k:"au",mn:120,av:250,mx:500},{g:"CA",k:"ca",mn:120,av:250,mx:500},{g:"ES",k:"es",mn:120,av:240,mx:450},{g:"FR",k:"fr",mn:120,av:240,mx:500},{g:"SK",k:"sk",mn:180,av:240,mx:350},{g:"IT",k:"it",mn:120,av:220,mx:350},{g:"UK",k:"uk",mn:120,av:220,mx:500},{g:"HR",k:"hr",mn:200,av:260,mx:350},{g:"SI",k:"si",mn:120,av:220,mx:300},{g:"CZ",k:"cz",mn:120,av:220,mx:350},{g:"GR",k:"gr",mn:120,av:210,mx:400},{g:"FI",k:"fi",mn:120,av:210,mx:400},{g:"NZ",k:"nz",mn:120,av:210,mx:360},{g:"JP",k:"jp",mn:130,av:200,mx:340},{g:"HU",k:"hu",mn:120,av:180,mx:350},{g:"PL",k:"pl",mn:120,av:170,mx:350},{g:"PT",k:"pt",mn:120,av:170,mx:300},{g:"US",k:"us",mn:120,av:160,mx:300},{g:"SG",k:"sg",mn:120,av:160,mx:250},{g:"EE",k:"ee",mn:100,av:150,mx:180},{g:"RU",k:"ru",mn:35,av:140,mx:250},{g:"KZ",k:"kz",mn:23,av:120,mx:200},{g:"BY",k:"by",mn:25,av:120,mx:200},{g:"UZ",k:"uz",mn:20,av:90,mx:150},{g:"BR",k:"br",mn:6,av:70,mx:120},{g:"CL",k:"cl",mn:15,av:70,mx:120},{g:"IN",k:"in",mn:11,av:70,mx:120},{g:"BD",k:"bd",mn:16,av:70,mx:100},{g:"TR",k:"tr",mn:30,av:60,mx:120},{g:"ZA",k:"za",mn:5,av:70,mx:100},{g:"MX",k:"mx",mn:5,av:50,mx:80},{g:"AR",k:"ar",mn:13,av:40,mx:80},{g:"TH",k:"th",mn:15,av:30,mx:50},{g:"CO",k:"co",mn:20,av:30,mx:50}];
+const RS=[{g:"JP",mn:30,av:40,mx:50},{g:"UA",mn:35,av:40,mx:50},{g:"ZA",mn:35,av:40,mx:50},{g:"IE",mn:20,av:30,mx:40},{g:"NZ",mn:20,av:30,mx:40},{g:"AT",mn:20,av:30,mx:50},{g:"AU",mn:20,av:30,mx:50},{g:"BR",mn:20,av:30,mx:40},{g:"NO",mn:20,av:30,mx:40},{g:"CA",mn:20,av:30,mx:50},{g:"CH",mn:20,av:30,mx:50},{g:"IT",mn:20,av:30,mx:50},{g:"DE",mn:20,av:30,mx:50},{g:"ES",mn:20,av:30,mx:50},{g:"FI",mn:20,av:30,mx:50},{g:"SE",mn:20,av:30,mx:40},{g:"PL",mn:20,av:30,mx:50},{g:"UK",mn:20,av:30,mx:50},{g:"FR",mn:20,av:30,mx:50},{g:"DK",mn:20,av:30,mx:50},{g:"NL",mn:20,av:30,mx:50},{g:"KZ",mn:20,av:30,mx:40},{g:"TR",mn:20,av:30,mx:40}];
+const MK={hosting:[{n:"NetWall",d:"DMCA-proof",p:"Держит абузы",c:"Новый",s:4,pr:"$15/мес",h:1},{n:"Zomro",d:"Основной",p:"Дёшево",c:"DMCA!",s:3,pr:"$5/мес"},{n:"Hetzner",d:"EU",p:"Надёжный",c:"Абузы",s:3,pr:"€4/мес"},{n:"Aeza",d:"Cloud",p:"Быстрый",c:"—",s:3,pr:"$3/мес"}],links:[{n:"Трастик",d:"Биржа #1",p:"Массово",c:"Качество ±",s:3,pr:"от 50₽",h:1},{n:"LinkBRO",d:"PBN",p:"Качество",c:"Дорого",s:4,pr:"Индив."}],domains:[{n:"ExpiredDomains",d:"Дропы",p:"Бесплатно",c:"Опыт",s:4,pr:"Free"},{n:"SpamZilla",d:"Фильтр",p:"Время",c:"$37",s:4,pr:"$37/мес"},{n:"Namecheap",d:"Регистратор",p:"Удобно",c:"DMCA!",s:2,pr:"$8/год"}],tds:[{n:"Keitaro",d:"#1",p:"Стандарт",c:"Сложно",s:4,pr:"$25/мес",h:1},{n:"Binom",d:"Трекер",p:"Быстрый",c:"VPS",s:4,pr:"$69/мес"},{n:"301.st",d:"CF Workers",p:"Без VPS",c:"Beta",s:3,pr:"Beta"}],seo:[{n:"Ahrefs",d:"Бэклинки",p:"Лучший",c:"Дорого",s:5,pr:"$99/мес",h:1},{n:"GSC",d:"Мониторинг",p:"Бесплатно",c:"Медленно",s:4,pr:"Free"},{n:"Serpstat",d:"SEO",p:"Дешевле",c:"±",s:3,pr:"$59/мес"}],vpn:[{n:"Bary VPN",d:"Для ТГ в РФ",p:"Работает",c:"—",s:4,pr:"$5/мес"},{n:"Outline",d:"Self-hosted",p:"Свой",c:"Настройка",s:3,pr:"Free+VPS"}]};
+const KB=[{q:"Как защититься от DMCA?",a:"1. DMCA-щит ($19/мес) — мониторинг + авто counter-notice\n2. Не регай на Namecheap — блокируют мгновенно\n3. NetWall — DMCA-proof хостинг\n4. Бэкапы: если домен снесут — зеркало за минуты",cat:"DMCA"},{q:"Какой хостинг выбрать?",a:"NetWall — DMCA-proof, не сносит\nZomro — дёшево, но сносит по DMCA\nHetzner — надёжный EU, абузы\n\nВажные: NetWall. Тесты: Zomro.",cat:"Хостинг"},{q:"RevShare или CPA?",a:"SEO → RevShare выгоднее в долгую (если не шейвят)\nCPA — предсказуемо\nHybrid — компромисс\n\nСовет: начни CPA, переходи RS когда проверишь через антишейв.",cat:"Монетизация"},{q:"Как выйти на бурж?",a:"1. Старт Tier-2: KZ ($149), Latam ($157)\n2. Потом DE ($312), CA ($339), UK ($446)\n3. Нужно: дроп + контент на языке + оффер через консьерж\n4. AI-генератор — 5 языков ($29/мес)",cat:"Стратегия"},{q:"Как проверить шейвит ли ПП?",a:"1. Антишейв-чекер ($49/мес) — свой пиксель\n2. Сравни клики/реги с данными ПП\n3. Расхождение >10% = 🚩\n4. Сквозная атрибуция spin/bet/win",cat:"Антишейв"},{q:"Сайт не индексируется?",a:"1. Индексатор ($9/мес) — Google API + Яндекс\n2. Проверь robots.txt и sitemap\n3. Добавь в GSC\n4. Ссылка с проиндексированного сайта\n5. Не используй CF для Яндекса",cat:"Техническое"},{q:"Где найти линки?",a:"Трастик — дёшево, массово\nLinkBRO — PBN, качество\nKwork — непредсказуемо\n\nВ маркетплейсе — условия от команд.",cat:"Линки"},{q:"Как увеличить конверсию?",a:"1. BetBuddy Link — pop-up→TG→FTD ×3-5\n2. Демо-слоты на сайте\n3. Проверь UX лендинга казино\n4. Тестируй офферы/бренды",cat:"Конверсия"}];
+const sR={hi:'Привет! Чем помочь?\n→ Доп. монетизация\n→ Оффер под ГЕО\n→ Проверка ПП\n→ Ставки CPA/RS\n→ Инструменты\n→ Продать/купить сайт\n→ Линки','германия':'🇩🇪 **DE**\nCPA: $10→**$312**→$750 | RS: 60-80%\n\nОфферы: Gambling Craft, Royal Partners (Starda DE)\nКоманды: Affilino, Big (@bigaffiliate)','royal partners':'⚠️ **Royal Partners** — 11.7% негатива\n❌ Кроссмаркетинг ❌ Задержки ❌ Шейв\n✅ Крупная\n💡 Поставь антишейв ($49/мес)','хостинг':'🛡 ✅ NetWall — DMCA-proof\n⚠️ Zomro — дёшево, но DMCA\n❌ Namecheap — блокирует','бурж':'🚀 AT/CH $750, UK $446, CA $339, DE $312\nСтарт: KZ $149, Latam $157','конверсия':'📉 1. Апдейт→GSC 2. Смена лендинга 3. Шейвят→антишейв\n💡 **BBL** — дожим через ТГ. FTD ×3-5','монетизация':'💰 1. **BetBuddy Link** — pop-up→TG→FTD. CPL\n2. **Retention** — RS растёт\n3. **Баннеры** — доход с показов','продать сайт':'🏷 Выстави на купле/продаже. Трафик, доход, ГЕО, цена.','линки':'🔗 Трастик (массово), LinkBRO (качество). В маркетплейсе — условия от команд.','индексация':'⚡ Индексатор $9/мес. 10 URL бесплатно.'};
+const aR={hi:'Привет! Чем помочь?\n→ Пробить сайт\n→ Найти SEO-команду\n→ Ставки CPA/RS\n→ Заявка\n→ Листинг','casino.org':'🔍 **casino.org**\nLegend Corp | Global | Hybrid','команды de':'🇩🇪 Affilino, Big (@bigaffiliate), Legend Corp\nCPA $312, RS 60-80%\n🎯 Консьерж подберёт','ставки':'💰 AT/CH $750, UK $446, CA $339, DE $312, RU $137','заявку':'🎯 Консьерж → 99% ответ.','листинг':'📋 Консьерж → Listing Fee'};
+
+function go(id){document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));document.getElementById(id).classList.add('on');document.querySelectorAll('.nl').forEach(l=>l.classList.remove('on'));window.scrollTo(0,0);if(id==='seoBot'&&!document.getElementById('sCB').innerHTML)iC('seo');if(id==='amBot'&&!document.getElementById('aCB').innerHTML)iC('am')}
+function iC(r){const b=document.getElementById(r==='seo'?'sCB':'aCB');const d=r==='seo'?sR:aR;b.innerHTML=`<div class="m m-b"><div class="mb">${d.hi.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')}</div></div>`}
+function sM(r){const iId=r==='seo'?'sI':'aI';const bId=r==='seo'?'sCB':'aCB';const i=document.getElementById(iId);const msg=i.value.trim();if(!msg)return;const b=document.getElementById(bId);b.innerHTML+=`<div class="m m-u fade"><div class="mu">${msg}</div></div>`;i.value='';setTimeout(()=>{let resp='Попробуй конкретнее — ГЕО, ПП или проблему.';const q=msg.toLowerCase();const db=r==='seo'?sR:aR;for(const[k,v]of Object.entries(db)){if(k!=='hi'&&q.includes(k)){resp=v;break}}if(r==='am'){const c=q.replace(/https?:\/\//,'').replace('www.','').replace(/\/$/,'');if(S[c]){const s=S[c];resp=`🔍 **${c}**\n${s.t} | ${s.g} | ${s.m}\nКонтакт: ${s.c}`;}}b.innerHTML+=`<div class="m m-b fade"><div class="mb">${resp.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')}</div></div>`;b.scrollTop=b.scrollHeight},400)}
+function sS(){sM('seo')}function aS(){sM('am')}function qS(m){document.getElementById('sI').value=m;sS()}function qA(m){document.getElementById('aI').value=m;aS()}
+function init(){
+document.getElementById('cB2').innerHTML=CP.map(d=>`<tr data-k="${d.g.toLowerCase()} ${d.k}"><td><b>${d.g}</b></td><td style="color:var(--grn);font-family:'JetBrains Mono',monospace">$${d.mn}</td><td style="color:var(--ylw);font-family:'JetBrains Mono',monospace;font-weight:700">$${d.av}</td><td style="color:var(--red);font-family:'JetBrains Mono',monospace">$${d.mx}</td></tr>`).join('');
+document.getElementById('rB2').innerHTML=RS.map(d=>`<tr data-k="${d.g.toLowerCase()}"><td><b>${d.g}</b></td><td style="color:var(--grn);font-family:'JetBrains Mono',monospace">${d.mn}%</td><td style="color:var(--ylw);font-family:'JetBrains Mono',monospace;font-weight:700">${d.av}%</td><td style="color:var(--red);font-family:'JetBrains Mono',monospace">${d.mx}%</td></tr>`).join('');
+rM('hosting');renderKB()}
+function gTab(t,e){document.querySelectorAll('#geo .tab').forEach(x=>x.classList.remove('on'));e.classList.add('on');document.getElementById('cT2').style.display=t==='cpa'?'':'none';document.getElementById('rT2').style.display=t==='rs'?'':'none'}
+function gFilt(q){q=q.toLowerCase();document.querySelectorAll('#cB2 tr,#rB2 tr').forEach(r=>{r.style.display=(r.dataset.k||'').includes(q)?'':'none'})}
+function lu(){const i=document.getElementById('lI').value.trim().toLowerCase().replace(/https?:\/\//,'').replace('www.','').replace(/\/$/,'');if(S[i]){const s=S[i];document.getElementById('lR').style.display='block';document.getElementById('lN').style.display='none';document.getElementById('lR').innerHTML=`<h3 style="margin:0 0 6px;font-size:14px">${i}</h3><div class="g2"><div><div class="sr"><span class="sr-l">Команда</span><span class="sr-v">${s.t}</span></div><div class="sr"><span class="sr-l">Контакт</span><span class="sr-v" style="color:var(--acc)">${s.c}</span></div></div><div><div class="sr"><span class="sr-l">ГЕО</span><span class="sr-v">${s.g}</span></div><div class="sr"><span class="sr-l">Модель</span><span class="sr-v">${s.m}</span></div></div></div>`}else{document.getElementById('lR').style.display='none';document.getElementById('lN').style.display='block'}}
+function rM(cat){const items=MK[cat]||[];document.getElementById('mL').innerHTML=items.map(s=>`<div class="tc ${s.h?'ft':''}"><div style="display:flex;justify-content:space-between"><div><div class="tc-t">${s.n}</div><div class="tc-d">${s.d}</div></div><div style="text-align:right"><div style="font-family:'JetBrains Mono',monospace;color:var(--ylw);font-size:11px">${'★'.repeat(s.s)}${'☆'.repeat(5-s.s)}</div><div style="font-size:10px;color:var(--t2)">${s.pr}</div></div></div><div class="g2" style="margin-top:4px"><div style="color:var(--grn);font-size:10px">✓ ${s.p}</div><div style="color:var(--red);font-size:10px">✗ ${s.c}</div></div><a href="#" style="color:var(--acc);font-size:10px;text-decoration:none;display:block;margin-top:4px">Перейти →</a></div>`).join('')}
+function mC(cat,e){document.querySelectorAll('#mTabs .tab').forEach(t=>t.classList.remove('on'));e.classList.add('on');rM(cat)}
+function cT(t){document.getElementById('c1').className=t==='seo'?'btn btn-p':'btn btn-s';document.getElementById('c2').className=t==='am'?'btn btn-p':'btn btn-s';document.getElementById('c3').className=t==='listing'?'btn btn-p':'btn btn-s';document.getElementById('cSF').style.display=t==='seo'?'block':'none';document.getElementById('cAF').style.display=t==='am'?'block':'none';document.getElementById('cLF').style.display=t==='listing'?'block':'none'}
+function renderKB(){document.getElementById('kbL').innerHTML=KB.map(q=>`<div class="card" style="cursor:pointer" onclick="this.querySelector('.ka').style.display=this.querySelector('.ka').style.display==='none'?'block':'none'"><div style="display:flex;justify-content:space-between;align-items:center"><div style="font-weight:600;font-size:12px">${q.q}</div><span class="tag tag-b">${q.cat}</span></div><div class="ka" style="display:none;margin-top:6px;font-size:10px;color:var(--t2);line-height:1.6;white-space:pre-line">${q.a}</div></div>`).join('')}
+function kbF(q){q=q.toLowerCase();document.querySelectorAll('#kbL .card').forEach(c=>{c.style.display=c.textContent.toLowerCase().includes(q)?'':'none'})}
+init()
+</script>
+</body>
+</html>
