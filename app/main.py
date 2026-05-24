@@ -68,7 +68,7 @@ async def rates_page(request: Request):
         cpa = await get_cpa_rates(db)
         rs = await get_rs_rates(db)
     total_points = sum(r["points"] or 0 for r in cpa) + sum(r["points"] or 0 for r in rs)
-    return templates.TemplateResponse("rates.html", {
+    return templates.TemplateResponse(request, "rates.html", {
         "request": request,
         "cpa_rates": cpa,
         "rs_rates": rs,
