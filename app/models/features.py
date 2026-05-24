@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, Text, Boolean, JSON
+from sqlalchemy import Column, Integer, BigInteger, String, Float, DateTime, Text, Boolean, JSON
 from sqlalchemy.sql import func
 from app.database import Base
 
@@ -6,7 +6,7 @@ from app.database import Base
 class RefLink(Base):
     __tablename__ = "ref_links"
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, nullable=False, index=True)  # telegram user id
+    user_id = Column(BigInteger, nullable=False, index=True)  # telegram user id
     url = Column(String(500), nullable=False)
     program_name = Column(String(200))
     geo = Column(String(50))
@@ -35,7 +35,7 @@ class RefLinkCheck(Base):
 class PartnerStatsUpload(Base):
     __tablename__ = "partner_stats_uploads"
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, nullable=False, index=True)
+    user_id = Column(BigInteger, nullable=False, index=True)
     program_name = Column(String(200))
     geo = Column(String(50))
     period = Column(String(50))  # e.g. "2026-04"
