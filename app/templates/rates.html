@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SEOhub — Ставки CPA/RS</title>
+<style>
+:root{--bg:#050508;--bg2:#0c0c14;--bg3:#13131e;--border:#1e1e30;--t:#e4e4f0;--t2:#8585a0;--t3:#4a4a64;--acc:#00e6b8;--grn:#3fcc7f;--ylw:#ffa630;--red:#ff3f5e}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--t)}
+.wrap{max-width:900px;margin:0 auto;padding:20px}
+h1{font-size:24px;font-weight:700;margin-bottom:4px}
+.sub{color:var(--t2);font-size:13px;margin-bottom:20px}
+.tabs{display:flex;gap:4px;margin-bottom:16px}
+.tab{padding:8px 20px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);color:var(--t2);cursor:pointer;font-size:13px;font-weight:500}
+.tab.on{background:var(--acc);color:#000;border-color:var(--acc)}
+.search{width:100%;padding:10px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--t);font-size:14px;margin-bottom:16px;outline:none}
+.search:focus{border-color:var(--acc)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:10px 12px;color:var(--t3);font-weight:500;border-bottom:1px solid var(--border);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+td{padding:10px 12px;border-bottom:1px solid var(--border)}
+tr:hover td{background:var(--bg3)}
+.mn{color:var(--grn)}.av{color:var(--ylw);font-weight:700}.mx{color:var(--red)}
+.mono{font-family:'JetBrains Mono',monospace}
+.bot-link{display:inline-block;margin-top:20px;padding:10px 24px;background:var(--acc);color:#000;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px}
+.bot-link:hover{opacity:.85}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🌍 Ставки CPA / RevShare по ГЕО</h1>
+  <p class="sub">Реальные данные из {{ total_points }} записей · {{ total_geos }} ГЕО · {{ total_pp }} ПП</p>
+
+  <div class="tabs">
+    <div class="tab on" onclick="showTab('cpa')">CPA ($)</div>
+    <div class="tab" onclick="showTab('rs')">RevShare (%)</div>
+  </div>
+
+  <input class="search" placeholder="Фильтр по ГЕО..." oninput="filterTable(this.value)">
+
+  <div id="cpa-table">
+  <table>
+    <thead><tr><th>ГЕО</th><th>Мин</th><th>Средняя</th><th>Макс</th><th>Точек</th></tr></thead>
+    <tbody>
+    {% for r in cpa_rates %}
+    <tr data-geo="{{ r.geo|lower }}">
+      <td><b>{{ r.geo }}</b></td>
+      <td class="mn mono">${{ r.min|int }}</td>
+      <td class="av mono">${{ r.avg|int }}</td>
+      <td class="mx mono">${{ r.max|int }}</td>
+      <td class="mono" style="color:var(--t3)">{{ r.points }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+
+  <div id="rs-table" style="display:none">
+  <table>
+    <thead><tr><th>ГЕО</th><th>Мин</th><th>Средняя</th><th>Макс</th><th>Точек</th></tr></thead>
+    <tbody>
+    {% for r in rs_rates %}
+    <tr data-geo="{{ r.geo|lower }}">
+      <td><b>{{ r.geo }}</b></td>
+      <td class="mn mono">{{ r.min|int }}%</td>
+      <td class="av mono">{{ r.avg|int }}%</td>
+      <td class="mx mono">{{ r.max|int }}%</td>
+      <td class="mono" style="color:var(--t3)">{{ r.points }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+
+  <a class="bot-link" href="https://t.me/SEOhub_bot">Открыть бот в Telegram →</a>
+</div>
+
+<script>
+function showTab(t){
+  document.getElementById('cpa-table').style.display=t==='cpa'?'':'none';
+  document.getElementById('rs-table').style.display=t==='rs'?'':'none';
+  document.querySelectorAll('.tab').forEach(e=>e.classList.remove('on'));
+  event.target.classList.add('on');
+}
+function filterTable(q){
+  q=q.toLowerCase();
+  document.querySelectorAll('tbody tr').forEach(r=>{
+    r.style.display=(r.dataset.geo||'').includes(q)?'':'none';
+  });
+}
+</script>
+</body>
+</html>
