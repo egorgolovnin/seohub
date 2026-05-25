@@ -109,8 +109,7 @@ def format_trace_result(result: dict) -> str:
             lines.append(item)
 
     orig_url = result.get("original_url", "")
-    lines.append(f"
-🌐 <a href='https://seohub-production.up.railway.app/check?url={orig_url}'>Подробнее на сайте →</a>")
+    lines.append(f"🌐 <a href='https://seohub-production.up.railway.app/check?url={orig_url}'>Подробнее на сайте →</a>")
 
     return "\n".join(lines)
 
