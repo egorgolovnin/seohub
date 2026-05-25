@@ -2,11 +2,132 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.models import GeoRateCPA, GeoRateRS, RateRaw, PPCondition
 
+# GEO aliases: name → ISO code
+GEO_ALIASES = {
+    # Russian names
+    "германия": "DE", "немецкий": "DE",
+    "австрия": "AT", "австрийский": "AT",
+    "швейцария": "CH", "швейцарский": "CH",
+    "великобритания": "UK", "англия": "UK", "британия": "UK", "английский": "UK",
+    "франция": "FR", "французский": "FR",
+    "испания": "ES", "испанский": "ES",
+    "италия": "IT", "итальянский": "IT",
+    "нидерланды": "NL", "голландия": "NL", "голландский": "NL",
+    "бельгия": "BE", "бельгийский": "BE",
+    "португалия": "PT", "португальский": "PT",
+    "польша": "PL", "польский": "PL",
+    "чехия": "CZ", "чешский": "CZ",
+    "словакия": "SK", "словацкий": "SK",
+    "хорватия": "HR", "хорватский": "HR",
+    "словения": "SI", "словенский": "SI",
+    "венгрия": "HU", "венгерский": "HU",
+    "румыния": "RO", "румынский": "RO",
+    "болгария": "BG", "болгарский": "BG",
+    "греция": "GR", "греческий": "GR",
+    "турция": "TR", "турецкий": "TR",
+    "финляндия": "FI", "финский": "FI",
+    "швеция": "SE", "шведский": "SE",
+    "норвегия": "NO", "норвежский": "NO",
+    "дания": "DK", "датский": "DK",
+    "ирландия": "IE", "ирландский": "IE",
+    "эстония": "EE", "эстонский": "EE",
+    "латвия": "LV", "латвийский": "LV",
+    "литва": "LT", "литовский": "LT",
+    "россия": "RU", "русский": "RU", "рф": "RU", "российский": "RU",
+    "казахстан": "KZ", "казахский": "KZ",
+    "узбекистан": "UZ", "узбекский": "UZ",
+    "беларусь": "BY", "белоруссия": "BY", "белорусский": "BY",
+    "украина": "UA", "украинский": "UA",
+    "бразилия": "BR", "бразильский": "BR",
+    "мексика": "MX", "мексиканский": "MX",
+    "аргентина": "AR", "аргентинский": "AR",
+    "чили": "CL", "чилийский": "CL",
+    "колумбия": "CO", "колумбийский": "CO",
+    "индия": "IN", "индийский": "IN",
+    "бангладеш": "BD",
+    "таиланд": "TH", "тайский": "TH",
+    "япония": "JP", "японский": "JP",
+    "сингапур": "SG",
+    "австралия": "AU", "австралийский": "AU",
+    "новая зеландия": "NZ",
+    "канада": "CA", "канадский": "CA",
+    "сша": "US", "америка": "US", "американский": "US", "штаты": "US",
+    "юар": "ZA", "южная африка": "ZA",
+    "оаэ": "AE", "эмираты": "AE", "дубай": "AE",
+    "саудовская аравия": "SA",
+    # English names
+    "germany": "DE", "german": "DE",
+    "austria": "AT", "austrian": "AT",
+    "switzerland": "CH", "swiss": "CH",
+    "united kingdom": "UK", "england": "UK", "britain": "UK", "british": "UK",
+    "france": "FR", "french": "FR",
+    "spain": "ES", "spanish": "ES",
+    "italy": "IT", "italian": "IT",
+    "netherlands": "NL", "holland": "NL", "dutch": "NL",
+    "belgium": "BE",
+    "portugal": "PT", "portuguese": "PT",
+    "poland": "PL", "polish": "PL",
+    "czech republic": "CZ", "czechia": "CZ", "czech": "CZ",
+    "slovakia": "SK",
+    "croatia": "HR",
+    "slovenia": "SI",
+    "hungary": "HU", "hungarian": "HU",
+    "romania": "RO",
+    "bulgaria": "BG",
+    "greece": "GR", "greek": "GR",
+    "turkey": "TR", "turkish": "TR",
+    "finland": "FI", "finnish": "FI",
+    "sweden": "SE", "swedish": "SE",
+    "norway": "NO", "norwegian": "NO",
+    "denmark": "DK", "danish": "DK",
+    "ireland": "IE", "irish": "IE",
+    "estonia": "EE",
+    "latvia": "LV",
+    "lithuania": "LT",
+    "russia": "RU", "russian": "RU",
+    "kazakhstan": "KZ",
+    "uzbekistan": "UZ",
+    "belarus": "BY",
+    "ukraine": "UA", "ukrainian": "UA",
+    "brazil": "BR", "brazilian": "BR",
+    "mexico": "MX", "mexican": "MX",
+    "argentina": "AR",
+    "chile": "CL",
+    "colombia": "CO",
+    "india": "IN", "indian": "IN",
+    "bangladesh": "BD",
+    "thailand": "TH", "thai": "TH",
+    "japan": "JP", "japanese": "JP",
+    "singapore": "SG",
+    "australia": "AU", "australian": "AU",
+    "new zealand": "NZ",
+    "canada": "CA", "canadian": "CA",
+    "usa": "US", "united states": "US", "america": "US", "american": "US",
+    "south africa": "ZA",
+    "uae": "AE", "dubai": "AE", "emirates": "AE",
+    "saudi arabia": "SA", "saudi": "SA",
+    # DACH / region shortcuts
+    "dach": "DE", "латам": "BR", "latam": "BR",
+    "скандинавия": "SE", "scandinavia": "SE", "nordics": "SE",
+}
+
+
+def resolve_geo_alias(query: str) -> str:
+    """Resolve a GEO alias to its ISO code. Returns original if not found."""
+    q = query.strip().lower()
+    if q in GEO_ALIASES:
+        return GEO_ALIASES[q]
+    # Already a code (2-6 chars uppercase)
+    if len(q) <= 6 and q.isalpha():
+        return q.upper()
+    return query.upper()
+
 
 async def get_cpa_rates(db: AsyncSession, geo_filter: str | None = None) -> list[dict]:
     query = select(GeoRateCPA).order_by(GeoRateCPA.avg_cpa.desc())
     if geo_filter:
-        query = query.where(GeoRateCPA.geo.ilike(f"%{geo_filter}%"))
+        resolved = resolve_geo_alias(geo_filter)
+        query = query.where(GeoRateCPA.geo.ilike(f"%{resolved}%"))
     result = await db.execute(query)
     rows = result.scalars().all()
     return [
@@ -22,7 +143,8 @@ async def get_cpa_rates(db: AsyncSession, geo_filter: str | None = None) -> list
 async def get_rs_rates(db: AsyncSession, geo_filter: str | None = None) -> list[dict]:
     query = select(GeoRateRS).order_by(GeoRateRS.avg_rs.desc())
     if geo_filter:
-        query = query.where(GeoRateRS.geo.ilike(f"%{geo_filter}%"))
+        resolved = resolve_geo_alias(geo_filter)
+        query = query.where(GeoRateRS.geo.ilike(f"%{resolved}%"))
     result = await db.execute(query)
     rows = result.scalars().all()
     return [
@@ -53,7 +175,7 @@ async def get_pp_conditions(db: AsyncSession, name_filter: str | None = None) ->
 
 
 async def get_rate_for_geo(db: AsyncSession, geo: str) -> dict | None:
-    geo_upper = geo.upper().strip()
+    geo_upper = resolve_geo_alias(geo)
     cpa_q = select(GeoRateCPA).where(GeoRateCPA.geo == geo_upper)
     rs_q = select(GeoRateRS).where(GeoRateRS.geo == geo_upper)
 

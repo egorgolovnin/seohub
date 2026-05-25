@@ -63,6 +63,12 @@ async def home():
         return HTMLResponse(f.read())
 
 
+@app.get("/check", response_class=HTMLResponse)
+async def check_page():
+    with open("app/templates/check.html", "r") as f:
+        return HTMLResponse(f.read())
+
+
 @app.get("/rates", response_class=HTMLResponse)
 async def rates_page(request: Request):
     async with async_session() as db:

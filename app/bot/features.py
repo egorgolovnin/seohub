@@ -1,14 +1,116 @@
-"""Bot handlers for ref link checking and stats analysis."""
+"""Bot handlers for ref link checking, redirect tracing, and stats analysis."""
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from app.database import async_session
-from app.services.reflinks import add_ref_link, get_user_links, check_and_save, format_check_result
+from app.services.reflinks import add_ref_link, get_user_links, check_and_save, check_link, format_check_result
 from app.services.stats_analyzer import analyze_stats, save_stats, format_analysis
 
 router = Router()
+
+
+# === Feature: Redirect Trace (/check) ===
+
+@router.message(Command("check"))
+async def cmd_check(message: Message):
+    args = message.text.split(maxsplit=1)
+    if len(args) < 2:
+        await message.answer(
+            "🔗 <b>Проверка ссылки — цепочка редиректов</b>\n\n"
+            "Формат: <code>/check https://track.partner.com/click?sub_id=123</code>\n\n"
+            "Покажу:\n"
+            "• Полную цепочку редиректов\n"
+            "• HTTP-коды на каждом шаге\n"
+            "• Потерянные трекинг-параметры\n"
+            "• Скорость и проблемы\n\n"
+            "Или проверь на сайте: https://seohub-production.up.railway.app/check"
+        )
+        return
+
+    url = args[1].strip()
+    if not url.startswith("http"):
+        url = "https://" + url
+
+    await message.answer("🔄 Проверяю цепочку редиректов...")
+
+    result = await check_link(url)
+    text = format_trace_result(result)
+    await message.answer(text)
+
+
+def format_trace_result(result: dict) -> str:
+    """Format redirect trace result for Telegram (WhereGoes-style)."""
+    chain = result.get("redirect_chain", [])
+    issues = result.get("issues", [])
+    info = result.get("info", [])
+    status = result.get("status_code", 0)
+    time_ms = result.get("response_time_ms", 0)
+    num_redirects = max(0, len(chain) - 1)
+
+    lines = ["🔗 <b>Проверка ссылки</b>\n"]
+
+    # Summary line
+    if any("💀" in i for i in issues):
+        lines.append("❌ <b>Статус: Мёртвая</b>")
+    elif any("🚩" in i for i in issues):
+        lines.append("🚩 <b>Статус: Подозрительно</b>")
+    elif any("⚠️" in i for i in issues):
+        lines.append("⚠️ <b>Статус: Внимание</b>")
+    else:
+        lines.append("✅ <b>Статус: Работает</b>")
+
+    lines.append(f"↪️ Редиректов: {num_redirects} | HTTP {status} | {time_ms}ms\n")
+
+    # Chain visualization
+    if chain:
+        lines.append("📍 <b>Цепочка:</b>\n")
+        for i, url in enumerate(chain):
+            try:
+                from urllib.parse import urlparse
+                domain = urlparse(url).netloc
+            except Exception:
+                domain = url
+
+            if i == 0:
+                prefix = "🟢 START"
+            elif i == len(chain) - 1:
+                prefix = "🔴 FINAL" if status >= 400 else "🟢 FINAL"
+            else:
+                prefix = f"🟡 30x"
+
+            # Truncate URL for readability
+            display_url = url if len(url) <= 70 else url[:67] + "..."
+            lines.append(f"{prefix}")
+            lines.append(f"<code>{display_url}</code>")
+
+            if i < len(chain) - 1:
+                # Check if domain changes
+                try:
+                    next_domain = urlparse(chain[i+1]).netloc
+                    if domain != next_domain:
+                        lines.append(f"  ↓ <i>{domain} → {next_domain}</i>")
+                    else:
+                        lines.append("  ↓")
+                except Exception:
+                    lines.append("  ↓")
+
+    # Issues
+    if issues:
+        lines.append("\n⚠️ <b>Проблемы:</b>")
+        for issue in issues[:5]:
+            lines.append(issue)
+
+    # Info
+    if info:
+        lines.append("\nℹ️ <b>Инфо:</b>")
+        for item in info[:5]:
+            lines.append(item)
+
+    lines.append(f"\n🌐 <a href='https://seohub-production.up.railway.app/check?url={result.get(\"original_url\", \"\")}'>Подробнее на сайте →</a>")
+
+    return "\n".join(lines)
 
 
 # === Feature 3: Ref Links ===

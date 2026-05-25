@@ -6,7 +6,7 @@ from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 from app.config import get_settings
 from app.database import async_session
-from app.services.rates import get_rate_for_geo, get_cpa_rates, get_rs_rates, format_rates_message, format_rates_list
+from app.services.rates import get_rate_for_geo, get_cpa_rates, get_rs_rates, format_rates_message, format_rates_list, resolve_geo_alias
 from app.services.digest import approve_post, reject_post, mark_published, format_digest_post, format_weekly_digest, get_approved_posts
 from app.models.models import DigestPost, WeeklyDigest
 
@@ -32,15 +32,17 @@ async def cmd_start(message: Message):
         "👋 <b>SEOhub Bot</b>\n\n"
         "💰 <b>Ставки CPA/RS:</b>\n"
         "/rates DE — ставки по ГЕО\n"
+        "/rates Германия — работает!\n"
         "/cpa — все CPA ставки\n"
         "/rs — все RevShare ставки\n\n"
-        "🔗 <b>Реф.ссылки:</b>\n"
+        "🔗 <b>Проверка ссылок:</b>\n"
+        "/check URL — цепочка редиректов\n"
         "/addlink URL — добавить на мониторинг\n"
         "/checklinks — проверить все ссылки\n"
         "/mylinks — мои ссылки\n\n"
         "📊 <b>Антишейв-анализ:</b>\n"
         "/analyze — проверить стату из ПП\n\n"
-        "Или просто напиши код ГЕО (DE, BR, RU...)"
+        "Или просто напиши ГЕО: DE, Германия, Germany..."
     )
     await message.answer(text)
 
@@ -48,16 +50,23 @@ async def cmd_start(message: Message):
 @router.message(Command("rates"))
 async def cmd_rates(message: Message):
     args = message.text.split(maxsplit=1)
-    geo = args[1].strip().upper() if len(args) > 1 else None
-    if not geo:
-        await message.answer("Укажи ГЕО: <code>/rates DE</code>")
+    geo_input = args[1].strip() if len(args) > 1 else None
+    if not geo_input:
+        await message.answer("Укажи ГЕО: <code>/rates DE</code> или <code>/rates Германия</code>")
         return
+    geo = resolve_geo_alias(geo_input)
     async with async_session() as db:
         data = await get_rate_for_geo(db, geo)
     if not data:
-        await message.answer(f"❌ Нет данных по ГЕО: {geo}\n\nПопробуй: DE, BR, RU, IN, KZ, US, UK, TR")
+        await message.answer(
+            f"❌ Нет данных по: {geo_input} (→ {geo})\n\n"
+            f"Попробуй: DE, BR, RU, IN, KZ, US, UK, TR\n"
+            f"Или: Германия, Бразилия, Россия, Germany..."
+        )
         return
-    await message.answer(format_rates_message(geo, data))
+    # Show resolved alias if different from input
+    header = f" ({geo_input})" if geo_input.upper() != geo else ""
+    await message.answer(format_rates_message(geo + header, data))
 
 
 @router.message(Command("cpa"))
@@ -79,15 +88,17 @@ async def cmd_help(message: Message):
     await cmd_start(message)
 
 
-# === GEO shortcut - just type country code ===
+# === GEO shortcut - type country code OR name ===
 
-@router.message(F.text.regexp(r"^[A-Za-z]{2,6}$"))
+@router.message(F.text.regexp(r"^[A-Za-zА-Яа-яёЁ\s]{2,20}$"))
 async def geo_shortcut(message: Message):
-    geo = message.text.strip().upper()
+    text = message.text.strip()
+    geo = resolve_geo_alias(text)
     async with async_session() as db:
         data = await get_rate_for_geo(db, geo)
     if data:
-        await message.answer(format_rates_message(geo, data))
+        header = f" ({text})" if text.upper() != geo else ""
+        await message.answer(format_rates_message(geo + header, data))
 
 
 # === DIGEST APPROVAL (admin only) ===
