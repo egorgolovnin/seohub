@@ -59,3 +59,29 @@ async def api_analyze_stats(req: StatsRequest):
     stats = req.model_dump()
     analysis = analyze_stats(stats, stats.get("geo", ""))
     return {"stats": stats, "analysis": analysis}
+
+
+class IoffersRequest(BaseModel):
+    telegram: str
+    site: str = ""
+    comment: str = ""
+
+
+@router.post("/ioffers-request")
+async def api_ioffers_request(req: IoffersRequest):
+    from app.bot.main import get_bot
+    from app.config import get_settings
+    settings = get_settings()
+    if settings.admin_chat_id:
+        bot = get_bot()
+        text = (
+            f"📊 <b>Заявка на iOffers</b>\n\n"
+            f"👤 Telegram: {req.telegram}\n"
+            f"🌐 Сайт: {req.site or 'не указан'}\n"
+            f"💬 Комментарий: {req.comment or 'нет'}"
+        )
+        try:
+            await bot.send_message(settings.admin_chat_id, text)
+        except Exception:
+            pass
+    return {"ok": True}
