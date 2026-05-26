@@ -5,7 +5,7 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from app.database import async_session
-from app.services.reflinks import add_ref_link, get_user_links, check_and_save, check_link, format_check_result
+from app.services.reflinks import add_ref_link, get_user_links, check_and_save, check_link, format_check_result, find_existing_link, set_user_mute
 from app.services.stats_analyzer import analyze_stats, save_stats, format_analysis
 
 router = Router()
@@ -20,11 +20,8 @@ async def cmd_check(message: Message):
         await message.answer(
             "🔗 <b>Проверка ссылки — цепочка редиректов</b>\n\n"
             "Формат: <code>/check https://track.partner.com/click?sub_id=123</code>\n\n"
-            "Покажу:\n"
-            "• Полную цепочку редиректов\n"
-            "• HTTP-коды на каждом шаге\n"
-            "• Потерянные трекинг-параметры\n"
-            "• Скорость и проблемы\n\n"
+            "Покажу полную цепочку редиректов, HTTP-коды, "
+            "потерянные параметры и скорость.\n\n"
             "Или проверь на сайте: https://seohub-production.up.railway.app/check"
         )
         return
@@ -66,9 +63,9 @@ def format_trace_result(result: dict) -> str:
     # Chain visualization
     if chain:
         lines.append("📍 <b>Цепочка:</b>\n")
+        from urllib.parse import urlparse
         for i, url in enumerate(chain):
             try:
-                from urllib.parse import urlparse
                 domain = urlparse(url).netloc
             except Exception:
                 domain = url
@@ -78,17 +75,15 @@ def format_trace_result(result: dict) -> str:
             elif i == len(chain) - 1:
                 prefix = "🔴 FINAL" if status >= 400 else "🟢 FINAL"
             else:
-                prefix = f"🟡 30x"
+                prefix = "🟡 30x"
 
-            # Truncate URL for readability
             display_url = url if len(url) <= 70 else url[:67] + "..."
             lines.append(f"{prefix}")
             lines.append(f"<code>{display_url}</code>")
 
             if i < len(chain) - 1:
-                # Check if domain changes
                 try:
-                    next_domain = urlparse(chain[i+1]).netloc
+                    next_domain = urlparse(chain[i + 1]).netloc
                     if domain != next_domain:
                         lines.append(f"  ↓ <i>{domain} → {next_domain}</i>")
                     else:
@@ -109,7 +104,8 @@ def format_trace_result(result: dict) -> str:
             lines.append(item)
 
     orig_url = result.get("original_url", "")
-    lines.append(f"🌐 <a href='https://seohub-production.up.railway.app/check?url={orig_url}'>Подробнее на сайте →</a>")
+    check_url = f"https://seohub-production.up.railway.app/check?url={orig_url}"
+    lines.append(f"\n🌐 <a href='{check_url}'>Подробнее на сайте →</a>")
 
     return "\n".join(lines)
 
@@ -123,14 +119,19 @@ async def cmd_addlink(message: Message):
         await message.answer(
             "🔗 <b>Добавить реф.ссылку на мониторинг</b>\n\n"
             "Формат: <code>/addlink https://your-link.com?sub_id=123</code>\n\n"
-            "Я проверю: работает ли ссылка, не меняется ли редирект, "
-            "не пропадают ли параметры трекинга."
+            "Ссылка проверяется автоматически 2 раза в день (9:00 и 21:00).\n"
+            "Если что-то сломается или изменится — пришлю алерт."
         )
         return
     url = args[1].strip()
     if not url.startswith("http"):
         url = "https://" + url
     async with async_session() as db:
+        # Check for duplicate
+        existing = await find_existing_link(db, message.from_user.id, url)
+        if existing:
+            await message.answer(f"⚠️ Эта ссылка уже на мониторинге.\n\n/mylinks — посмотреть все")
+            return
         link = await add_ref_link(db, message.from_user.id, url)
         check = await check_and_save(db, link)
         await message.answer(format_check_result(link, check))
@@ -164,8 +165,30 @@ async def cmd_mylinks(message: Message):
         lines.append(f"{emoji} <code>{link.url[:60]}</code>")
         if link.last_checked_at:
             lines.append(f"   Проверено: {link.last_checked_at.strftime('%d.%m %H:%M')}")
-    lines.append(f"\n/checklinks — проверить все заново")
+    lines.append(f"\n🔄 Автопроверка: 09:00 и 21:00 ежедневно")
+    lines.append(f"/checklinks — проверить все сейчас")
+    lines.append(f"/mutelinks — выключить пуши")
     await message.answer("\n".join(lines))
+
+
+@router.message(Command("mutelinks"))
+async def cmd_mutelinks(message: Message):
+    async with async_session() as db:
+        count = await set_user_mute(db, message.from_user.id, True)
+    if count:
+        await message.answer(f"🔇 Пуши выключены для {count} ссылок.\n\n/unmutelinks — включить обратно")
+    else:
+        await message.answer("У тебя нет ссылок. Добавь: <code>/addlink URL</code>")
+
+
+@router.message(Command("unmutelinks"))
+async def cmd_unmutelinks(message: Message):
+    async with async_session() as db:
+        count = await set_user_mute(db, message.from_user.id, False)
+    if count:
+        await message.answer(f"🔔 Пуши включены для {count} ссылок.\n\nПроверка: 09:00 и 21:00 ежедневно.")
+    else:
+        await message.answer("У тебя нет ссылок. Добавь: <code>/addlink URL</code>")
 
 
 # === Feature 4: Stats Analysis ===

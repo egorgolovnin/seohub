@@ -53,7 +53,6 @@ async def job_send_daily_digest():
         if not top_posts:
             logger.info("No posts to send for digest")
             return
-        # Import bot here to avoid circular imports
         from app.bot.main import send_digest_approval
         for post in top_posts:
             await send_digest_approval(post)
@@ -81,6 +80,66 @@ async def job_weekly_digest():
                 await send_weekly_digest_approval(weekly, posts)
 
 
+async def job_check_links():
+    """Check all active ref links twice a day, alert on changes."""
+    logger.info("Starting link monitoring job")
+    from app.services.reflinks import get_all_active_links, check_and_save
+    from app.bot.main import send_link_alert
+
+    async with async_session() as db:
+        links = await get_all_active_links(db)
+        if not links:
+            logger.info("No active links to check")
+            return
+
+        logger.info(f"Checking {len(links)} links")
+        alerts_sent = 0
+
+        for link in links:
+            old_status = link.last_status
+            old_final_url = link.last_redirect_url
+
+            try:
+                check = await check_and_save(db, link)
+            except Exception as e:
+                logger.error(f"Error checking link {link.id}: {e}")
+                continue
+
+            new_status = link.last_status
+            new_final_url = link.last_redirect_url
+
+            # Alert if status changed to bad
+            should_alert = False
+            alert_lines = [f"🚨 <b>Алерт: реф.ссылка</b>\n"]
+            alert_lines.append(f"🔗 <code>{link.url[:70]}</code>\n")
+
+            if old_status in ("ok", "unknown") and new_status in ("dead", "suspicious"):
+                should_alert = True
+                status_emoji = {"dead": "💀 Мёртвая", "suspicious": "🚩 Подозрительно"}
+                alert_lines.append(f"❌ Статус: {old_status} → <b>{status_emoji.get(new_status, new_status)}</b>")
+
+            if old_final_url and new_final_url and old_final_url != new_final_url:
+                should_alert = True
+                alert_lines.append(f"↪️ Финальный URL изменился!")
+                alert_lines.append(f"   Было: <code>{old_final_url[:60]}</code>")
+                alert_lines.append(f"   Стало: <code>{new_final_url[:60]}</code>")
+
+            if check.issues:
+                new_issues = [i for i in check.issues if "🚩" in i or "💀" in i]
+                if new_issues and old_status == "ok":
+                    should_alert = True
+                    alert_lines.append("\n⚠️ <b>Новые проблемы:</b>")
+                    for issue in new_issues[:3]:
+                        alert_lines.append(issue)
+
+            if should_alert and not getattr(link, 'alerts_muted', False):
+                alert_lines.append(f"\n/checklinks — проверить все")
+                await send_link_alert(link.user_id, "\n".join(alert_lines))
+                alerts_sent += 1
+
+        logger.info(f"Link check done: {len(links)} checked, {alerts_sent} alerts sent")
+
+
 def start_scheduler():
     # Fetch channels every 6 hours
     scheduler.add_job(job_fetch_channels, CronTrigger(hour="2,8,14,20", minute=0))
@@ -90,6 +149,8 @@ def start_scheduler():
     scheduler.add_job(job_send_daily_digest, CronTrigger(hour=12, minute=0))
     # Weekly digest on Fridays at 18:00
     scheduler.add_job(job_weekly_digest, CronTrigger(day_of_week="fri", hour=18, minute=0))
+    # Link monitoring at 9:00 and 21:00 UTC (adjust for your timezone)
+    scheduler.add_job(job_check_links, CronTrigger(hour="6,18", minute=0))
 
     scheduler.start()
     logger.info("Scheduler started")

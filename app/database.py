@@ -1,6 +1,10 @@
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy import text
 from app.config import get_settings
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Base(DeclarativeBase):
@@ -19,3 +23,13 @@ async def get_db():
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    # Run migrations for existing tables
+    async with engine.begin() as conn:
+        try:
+            await conn.execute(text(
+                "ALTER TABLE ref_links ADD COLUMN IF NOT EXISTS alerts_muted BOOLEAN DEFAULT FALSE"
+            ))
+            logger.info("Migration: alerts_muted column ensured")
+        except Exception as e:
+            logger.warning(f"Migration skip: {e}")

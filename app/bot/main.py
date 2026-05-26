@@ -6,7 +6,7 @@ from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 from app.config import get_settings
 from app.database import async_session
-from app.services.rates import get_rate_for_geo, get_cpa_rates, get_rs_rates, format_rates_message, format_rates_list, resolve_geo_alias
+from app.services.rates import get_rate_for_geo, get_cpa_rates, format_rates_message, format_rates_list, resolve_geo_alias
 from app.services.digest import approve_post, reject_post, mark_published, format_digest_post, format_weekly_digest, get_approved_posts
 from app.models.models import DigestPost, WeeklyDigest
 
@@ -30,15 +30,13 @@ def get_bot() -> Bot:
 async def cmd_start(message: Message):
     text = (
         "👋 <b>SEOhub Bot</b>\n\n"
-        "💰 <b>Ставки CPA/RS:</b>\n"
+        "💰 <b>Ставки CPA:</b>\n"
         "/rates DE — ставки по ГЕО\n"
         "/rates Германия — работает!\n"
-        "/cpa — все CPA ставки\n"
-        "/rs — все RevShare ставки\n\n"
+        "/cpa — все CPA ставки\n\n"
         "🔗 <b>Проверка ссылок:</b>\n"
         "/check URL — цепочка редиректов\n"
-        "/addlink URL — добавить на мониторинг\n"
-        "/checklinks — проверить все ссылки\n"
+        "/addlink URL — на мониторинг (проверка 2 раза в день)\n"
         "/mylinks — мои ссылки\n\n"
         "📊 <b>Антишейв-анализ:</b>\n"
         "/analyze — проверить стату из ПП\n\n"
@@ -64,7 +62,6 @@ async def cmd_rates(message: Message):
             f"Или: Германия, Бразилия, Россия, Germany..."
         )
         return
-    # Show resolved alias if different from input
     header = f" ({geo_input})" if geo_input.upper() != geo else ""
     await message.answer(format_rates_message(geo + header, data))
 
@@ -74,13 +71,6 @@ async def cmd_cpa(message: Message):
     async with async_session() as db:
         rates = await get_cpa_rates(db)
     await message.answer(format_rates_list(rates, "cpa"))
-
-
-@router.message(Command("rs"))
-async def cmd_rs(message: Message):
-    async with async_session() as db:
-        rates = await get_rs_rates(db)
-    await message.answer(format_rates_list(rates, "rs"))
 
 
 @router.message(Command("help"))
@@ -118,7 +108,6 @@ async def digest_callback(callback: CallbackQuery):
             await approve_post(db, post_id)
             await callback.answer("✅ Одобрено")
             await callback.message.edit_reply_markup(reply_markup=None)
-            # Publish to channel
             settings = get_settings()
             if settings.channel_id:
                 from sqlalchemy import select
@@ -143,7 +132,6 @@ async def weekly_callback(callback: CallbackQuery):
 
     action = callback.data.split("_")[1]
     if action == "publish":
-        # Publish weekly digest to channel
         text = callback.message.text or callback.message.caption or ""
         b = get_bot()
         if settings.channel_id:
@@ -186,6 +174,17 @@ async def send_weekly_digest_approval(weekly: WeeklyDigest, posts: list[DigestPo
         [InlineKeyboardButton(text="✅ Опубликовать", callback_data="weekly_publish")]
     ])
     await b.send_message(settings.admin_chat_id, text, reply_markup=kb, parse_mode=ParseMode.HTML)
+
+
+# === ALERT for link monitoring (called from scheduler) ===
+
+async def send_link_alert(user_id: int, text: str):
+    """Send alert to user about link status change."""
+    try:
+        b = get_bot()
+        await b.send_message(user_id, text, parse_mode=ParseMode.HTML)
+    except Exception as e:
+        logger.error(f"Failed to send link alert to {user_id}: {e}")
 
 
 def create_dispatcher() -> Dispatcher:

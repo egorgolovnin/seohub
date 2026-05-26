@@ -279,6 +279,18 @@ def analyze_link_issues(original_url: str, check_result: dict) -> tuple[list[str
     return issues, info
 
 
+async def find_existing_link(db: AsyncSession, user_id: int, url: str) -> RefLink | None:
+    """Check if user already has this URL on monitoring."""
+    result = await db.execute(
+        select(RefLink).where(
+            RefLink.user_id == user_id,
+            RefLink.url == url,
+            RefLink.is_active.is_(True),
+        )
+    )
+    return result.scalar_one_or_none()
+
+
 async def add_ref_link(db: AsyncSession, user_id: int, url: str, program_name: str = "", geo: str = "") -> RefLink:
     link = RefLink(user_id=user_id, url=url, program_name=program_name, geo=geo)
     db.add(link)
@@ -416,3 +428,23 @@ def format_check_result(link: RefLink, check: RefLinkCheck) -> str:
         lines.append(f"🕐 Последняя: {link.last_checked_at.strftime('%d.%m.%Y %H:%M')}")
 
     return "\n".join(lines)
+
+
+async def get_all_active_links(db: AsyncSession) -> list[RefLink]:
+    """Get all active links across all users for scheduled checking."""
+    result = await db.execute(
+        select(RefLink).where(RefLink.is_active.is_(True)).order_by(RefLink.user_id)
+    )
+    return list(result.scalars().all())
+
+
+async def set_user_mute(db: AsyncSession, user_id: int, muted: bool) -> int:
+    """Mute or unmute alerts for all user's links. Returns count of links affected."""
+    result = await db.execute(
+        select(RefLink).where(RefLink.user_id == user_id, RefLink.is_active.is_(True))
+    )
+    links = list(result.scalars().all())
+    for link in links:
+        link.alerts_muted = muted
+    await db.commit()
+    return len(links)

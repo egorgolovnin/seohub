@@ -16,6 +16,7 @@ class RefLink(Base):
     last_checked_at = Column(DateTime)
     check_count = Column(Integer, default=0)
     alerts = Column(JSON, default=list)  # list of alert messages
+    alerts_muted = Column(Boolean, default=False)  # user can mute alerts
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
 

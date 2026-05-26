@@ -177,20 +177,16 @@ async def get_pp_conditions(db: AsyncSession, name_filter: str | None = None) ->
 async def get_rate_for_geo(db: AsyncSession, geo: str) -> dict | None:
     geo_upper = resolve_geo_alias(geo)
     cpa_q = select(GeoRateCPA).where(GeoRateCPA.geo == geo_upper)
-    rs_q = select(GeoRateRS).where(GeoRateRS.geo == geo_upper)
 
     cpa_result = await db.execute(cpa_q)
-    rs_result = await db.execute(rs_q)
     cpa = cpa_result.scalar_one_or_none()
-    rs = rs_result.scalar_one_or_none()
 
-    if not cpa and not rs:
+    if not cpa:
         return None
 
     return {
         "geo": geo_upper,
-        "cpa": {"min": cpa.min_cpa, "avg": cpa.avg_cpa, "max": cpa.max_cpa, "points": cpa.data_points} if cpa else None,
-        "rs": {"min": rs.min_rs, "avg": rs.avg_rs, "max": rs.max_rs, "points": rs.data_points} if rs else None,
+        "cpa": {"min": cpa.min_cpa, "avg": cpa.avg_cpa, "max": cpa.max_cpa} if cpa else None,
     }
 
 
@@ -199,26 +195,14 @@ def format_rates_message(geo: str, data: dict) -> str:
     if data.get("cpa"):
         c = data["cpa"]
         lines.append(f"💰 <b>CPA:</b> ${c['min']:.0f} → <b>${c['avg']:.0f}</b> → ${c['max']:.0f}")
-        lines.append(f"   ({c['points']} точек данных)")
-    if data.get("rs"):
-        r = data["rs"]
-        lines.append(f"📊 <b>RevShare:</b> {r['min']:.0f}% → <b>{r['avg']:.0f}%</b> → {r['max']:.0f}%")
-        lines.append(f"   ({r['points']} точек данных)")
-    if not data.get("cpa") and not data.get("rs"):
+    else:
         lines.append("Нет данных по этому ГЕО")
     return "\n".join(lines)
 
 
 def format_rates_list(rates: list[dict], rate_type: str) -> str:
-    if rate_type == "cpa":
-        header = "💰 <b>CPA ставки по ГЕО</b>\n\n"
-        lines = []
-        for r in rates[:20]:
-            lines.append(f"<b>{r['geo']}</b>: ${r['min']:.0f} → <b>${r['avg']:.0f}</b> → ${r['max']:.0f}")
-        return header + "\n".join(lines)
-    else:
-        header = "📊 <b>RevShare по ГЕО</b>\n\n"
-        lines = []
-        for r in rates[:20]:
-            lines.append(f"<b>{r['geo']}</b>: {r['min']:.0f}% → <b>{r['avg']:.0f}%</b> → {r['max']:.0f}%")
-        return header + "\n".join(lines)
+    header = "💰 <b>CPA ставки по ГЕО</b>\n\n"
+    lines = []
+    for r in rates:
+        lines.append(f"<b>{r['geo']}</b>: ${r['min']:.0f} → <b>${r['avg']:.0f}</b> → ${r['max']:.0f}")
+    return header + "\n".join(lines)
