@@ -120,6 +120,7 @@ class LeadRequest(BaseModel):
     name: str = ""
     telegram: str
     product: str = ""
+    details: str = ""
 
 
 @router.post("/lead")
@@ -135,6 +136,25 @@ async def api_lead(req: LeadRequest):
             f"👤 Имя: {req.name or 'не указано'}\n"
             f"📱 Telegram: {req.telegram}"
         )
+        if req.details:
+            try:
+                import json
+                d = json.loads(req.details)
+                detail_lines = []
+                labels = {
+                    "vert": "Вертикаль", "geo": "ГЕО", "vol": "Объём",
+                    "model": "Модель", "rate": "Ставка", "budget": "Бюджет",
+                    "site": "Сайт", "domain": "Домен", "traffic": "Трафик",
+                    "income": "Доход", "price": "Цена", "pp": "ПП", "text": "Описание",
+                }
+                for k, v in d.items():
+                    if v:
+                        label = labels.get(k, k)
+                        detail_lines.append(f"  {label}: {v}")
+                if detail_lines:
+                    text += "\n\n📋 <b>Детали:</b>\n" + "\n".join(detail_lines)
+            except Exception:
+                text += f"\n📋 {req.details}"
         try:
             await bot.send_message(settings.admin_chat_id, text)
         except Exception:
