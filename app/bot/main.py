@@ -59,7 +59,7 @@ async def cmd_start(message: Message):
     )
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="📢 Канал", url="https://t.me/seohub_blog"),
+            InlineKeyboardButton(text="📢 Канал", url="https://t.me/seonewsbyhub"),
             InlineKeyboardButton(text="🌐 Сайт", url=site),
         ],
         [
