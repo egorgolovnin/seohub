@@ -88,12 +88,15 @@ async def check_link(url: str, timeout: int = 15) -> dict:
         "status_code": None,
         "final_url": None,
         "redirect_chain": [],
+        "redirect_codes": [],  # HTTP codes for each redirect step
         "response_time_ms": 0,
         "issues": [],
         "info": [],
+        "landing": None,  # landing page analysis
     }
 
     start = time.monotonic()
+    final_response = None
     try:
         async with httpx.AsyncClient(
             follow_redirects=False,
@@ -103,6 +106,7 @@ async def check_link(url: str, timeout: int = 15) -> dict:
         ) as client:
             current_url = url
             chain = [current_url]
+            codes = []
             max_redirects = 15
 
             for _ in range(max_redirects):
@@ -116,6 +120,7 @@ async def check_link(url: str, timeout: int = 15) -> dict:
                     break
 
                 result["status_code"] = resp.status_code
+                codes.append(resp.status_code)
 
                 if resp.status_code in (301, 302, 303, 307, 308):
                     next_url = resp.headers.get("location", "")
@@ -130,10 +135,12 @@ async def check_link(url: str, timeout: int = 15) -> dict:
                     chain.append(next_url)
                     current_url = next_url
                 else:
+                    final_response = resp
                     break
 
             result["final_url"] = current_url
             result["redirect_chain"] = chain
+            result["redirect_codes"] = codes
             result["response_time_ms"] = int((time.monotonic() - start) * 1000)
 
     except httpx.TimeoutException:
@@ -150,9 +157,70 @@ async def check_link(url: str, timeout: int = 15) -> dict:
         result["status_code"] = 0
         return result
 
+    # Analyze landing page
+    if final_response is not None:
+        result["landing"] = _analyze_landing(final_response, result["final_url"])
+
     # Analyze
     result["issues"], result["info"] = analyze_link_issues(url, result)
     return result
+
+
+def _analyze_landing(resp, url: str) -> dict:
+    """Analyze the final landing page."""
+    landing = {
+        "title": None,
+        "has_reg_form": False,
+        "language": None,
+        "content_length": 0,
+        "content_type": None,
+        "server": None,
+        "is_gambling": False,
+    }
+
+    content_type = resp.headers.get("content-type", "")
+    landing["content_type"] = content_type.split(";")[0].strip()
+    landing["server"] = resp.headers.get("server", None)
+    landing["content_length"] = len(resp.content) if resp.content else 0
+
+    # Only parse HTML
+    if "text/html" not in content_type:
+        return landing
+
+    try:
+        body = resp.text[:50000]  # limit parsing
+    except Exception:
+        return landing
+
+    body_lower = body.lower()
+
+    # Title
+    title_match = re.search(r"<title[^>]*>(.*?)</title>", body, re.IGNORECASE | re.DOTALL)
+    if title_match:
+        landing["title"] = title_match.group(1).strip()[:120]
+
+    # Language
+    lang_match = re.search(r'<html[^>]*\slang=["\']?([a-zA-Z-]+)', body, re.IGNORECASE)
+    if lang_match:
+        landing["language"] = lang_match.group(1)
+
+    # Registration form detection
+    reg_keywords = ["registration", "register", "sign up", "signup", "reg_form",
+                     "регистрация", "зарегистрироваться", "создать аккаунт"]
+    if any(kw in body_lower for kw in reg_keywords):
+        landing["has_reg_form"] = True
+    if re.search(r'<form[^>]*>', body_lower):
+        if any(kw in body_lower for kw in ["password", "email", "пароль", "логин"]):
+            landing["has_reg_form"] = True
+
+    # Gambling detection
+    gambling_words = ["casino", "slot", "bet", "poker", "jackpot", "bonus",
+                       "spin", "roulette", "blackjack", "deposit", "казино"]
+    gambling_count = sum(1 for w in gambling_words if w in body_lower)
+    if gambling_count >= 2:
+        landing["is_gambling"] = True
+
+    return landing
 
 
 def analyze_link_issues(original_url: str, check_result: dict) -> tuple[list[str], list[str]]:
@@ -326,8 +394,10 @@ async def check_and_save(db: AsyncSession, link: RefLink) -> RefLinkCheck:
         status_code=result["status_code"],
         final_url=result["final_url"],
         redirect_chain=result["redirect_chain"],
+        redirect_codes=result.get("redirect_codes", []),
         response_time_ms=result["response_time_ms"],
         issues=result["issues"],
+        landing=result.get("landing"),
     )
     db.add(check)
 
@@ -397,8 +467,9 @@ def format_check_result(link: RefLink, check: RefLinkCheck) -> str:
     if link.program_name:
         lines.append(f"📋 ПП: {link.program_name}")
 
-    # Redirect chain - full visualization
+    # Redirect chain - full visualization with HTTP codes
     chain = check.redirect_chain or []
+    codes = check.redirect_codes if hasattr(check, 'redirect_codes') and check.redirect_codes else []
     num_redirects = max(0, len(chain) - 1)
     lines.append(f"↪️ Редиректов: {num_redirects}")
 
@@ -411,13 +482,17 @@ def format_check_result(link: RefLink, check: RefLinkCheck) -> str:
             except Exception:
                 domain = url
 
+            # Get HTTP code for this step
+            code = codes[i] if i < len(codes) else ""
+            code_str = f" ({code})" if code else ""
+
             if i == 0:
-                prefix = "🟢 START"
+                prefix = f"🟢 START"
             elif i == len(chain) - 1:
                 sc = check.status_code or 200
-                prefix = "🔴 FINAL" if sc >= 400 else "🟢 FINAL"
+                prefix = f"🔴 {sc}" if sc >= 400 else f"🟢 {sc}"
             else:
-                prefix = "🟡 30x"
+                prefix = f"🟡 {code}" if code else "🟡 30x"
 
             display_url = url if len(url) <= 70 else url[:67] + "..."
             lines.append(f"{prefix}")
@@ -432,6 +507,23 @@ def format_check_result(link: RefLink, check: RefLinkCheck) -> str:
                         lines.append("  ↓")
                 except Exception:
                     lines.append("  ↓")
+
+    # Landing page analysis
+    landing = check.landing if hasattr(check, 'landing') and check.landing else None
+    if landing:
+        lines.append("")
+        lines.append("🌐 <b>Лендинг:</b>")
+        if landing.get("title"):
+            lines.append(f"📄 {landing['title'][:80]}")
+        if landing.get("language"):
+            lines.append(f"🗣 Язык: {landing['language']}")
+        if landing.get("has_reg_form"):
+            lines.append("📝 Форма регистрации: ✅")
+        if landing.get("is_gambling"):
+            lines.append("🎰 Гемблинг-сайт: ✅")
+        size_kb = (landing.get("content_length") or 0) / 1024
+        if size_kb > 0:
+            lines.append(f"📦 Размер: {size_kb:.0f} KB")
 
     # Issues (problems)
     issues = check.issues or []

@@ -28,8 +28,10 @@ class RefLinkCheck(Base):
     status_code = Column(Integer)
     final_url = Column(String(500))
     redirect_chain = Column(JSON)
+    redirect_codes = Column(JSON, default=list)  # HTTP code per redirect step
     response_time_ms = Column(Integer)
     issues = Column(JSON, default=list)  # list of detected issues
+    landing = Column(JSON)  # landing page analysis (title, language, reg form, etc.)
     checked_at = Column(DateTime, server_default=func.now())
 
 

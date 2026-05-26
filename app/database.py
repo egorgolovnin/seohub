@@ -26,10 +26,13 @@ async def init_db():
 
     # Run migrations for existing tables
     async with engine.begin() as conn:
-        try:
-            await conn.execute(text(
-                "ALTER TABLE ref_links ADD COLUMN IF NOT EXISTS alerts_muted BOOLEAN DEFAULT FALSE"
-            ))
-            logger.info("Migration: alerts_muted column ensured")
-        except Exception as e:
-            logger.warning(f"Migration skip: {e}")
+        migrations = [
+            "ALTER TABLE ref_links ADD COLUMN IF NOT EXISTS alerts_muted BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE ref_link_checks ADD COLUMN IF NOT EXISTS redirect_codes JSON",
+            "ALTER TABLE ref_link_checks ADD COLUMN IF NOT EXISTS landing JSON",
+        ]
+        for sql in migrations:
+            try:
+                await conn.execute(text(sql))
+            except Exception:
+                pass

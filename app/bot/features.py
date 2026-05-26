@@ -40,10 +40,12 @@ async def cmd_check(message: Message):
 def format_trace_result(result: dict) -> str:
     """Format redirect trace result for Telegram (WhereGoes-style)."""
     chain = result.get("redirect_chain", [])
+    codes = result.get("redirect_codes", [])
     issues = result.get("issues", [])
     info = result.get("info", [])
     status = result.get("status_code", 0)
     time_ms = result.get("response_time_ms", 0)
+    landing = result.get("landing")
     num_redirects = max(0, len(chain) - 1)
 
     lines = ["🔗 <b>Проверка ссылки</b>\n"]
@@ -60,7 +62,7 @@ def format_trace_result(result: dict) -> str:
 
     lines.append(f"↪️ Редиректов: {num_redirects} | HTTP {status} | {time_ms}ms\n")
 
-    # Chain visualization
+    # Chain visualization with HTTP codes
     if chain:
         lines.append("📍 <b>Цепочка:</b>\n")
         from urllib.parse import urlparse
@@ -70,12 +72,14 @@ def format_trace_result(result: dict) -> str:
             except Exception:
                 domain = url
 
+            code = codes[i] if i < len(codes) else ""
+
             if i == 0:
                 prefix = "🟢 START"
             elif i == len(chain) - 1:
-                prefix = "🔴 FINAL" if status >= 400 else "🟢 FINAL"
+                prefix = f"🔴 {status}" if status >= 400 else f"🟢 {status}"
             else:
-                prefix = "🟡 30x"
+                prefix = f"🟡 {code}" if code else "🟡 30x"
 
             display_url = url if len(url) <= 70 else url[:67] + "..."
             lines.append(f"{prefix}")
@@ -90,6 +94,21 @@ def format_trace_result(result: dict) -> str:
                         lines.append("  ↓")
                 except Exception:
                     lines.append("  ↓")
+
+    # Landing page analysis
+    if landing:
+        lines.append("\n🌐 <b>Лендинг:</b>")
+        if landing.get("title"):
+            lines.append(f"📄 {landing['title'][:80]}")
+        if landing.get("language"):
+            lines.append(f"🗣 Язык: {landing['language']}")
+        if landing.get("has_reg_form"):
+            lines.append("📝 Форма регистрации: ✅")
+        if landing.get("is_gambling"):
+            lines.append("🎰 Гемблинг-сайт: ✅")
+        size_kb = (landing.get("content_length") or 0) / 1024
+        if size_kb > 0:
+            lines.append(f"📦 Размер: {size_kb:.0f} KB")
 
     # Issues
     if issues:
