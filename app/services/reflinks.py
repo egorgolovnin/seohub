@@ -1,6 +1,7 @@
 import logging
 import time
 import re
+import socket
 from datetime import datetime
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 import httpx
@@ -81,29 +82,58 @@ def _extract_tracking_params(url: str) -> dict:
     return tracking
 
 
-async def check_link(url: str, timeout: int = 15) -> dict:
-    """Check a referral link with browser-like headers."""
+async def check_link(url: str, timeout: int = 15, proxy_geo: str | None = None) -> dict:
+    """Check a referral link with browser-like headers.
+
+    If proxy_geo is set (e.g. 'CY'), tries to route through a residential proxy
+    for that country. Falls back to direct if no proxy configured.
+    """
     result = {
         "original_url": url,
         "status_code": None,
         "final_url": None,
         "redirect_chain": [],
-        "redirect_codes": [],  # HTTP codes for each redirect step
+        "redirect_codes": [],
         "response_time_ms": 0,
         "issues": [],
         "info": [],
-        "landing": None,  # landing page analysis
+        "landing": None,
+        "checked_from": None,  # which geo we checked from
     }
+
+    # Determine proxy
+    proxy = None
+    checked_from = "сервер (US/EU)"
+    if proxy_geo:
+        from app.config import get_settings
+        settings = get_settings()
+        if settings.proxy_url:
+            # Most residential proxy providers support country targeting via URL params
+            # e.g. http://user-country-CY:pass@gate.provider.com:7777
+            # Adjust format based on your provider
+            base_proxy = settings.proxy_url
+            if "{country}" in base_proxy:
+                proxy = base_proxy.replace("{country}", proxy_geo.upper())
+            else:
+                proxy = base_proxy
+            checked_from = f"прокси ({proxy_geo.upper()})"
+        else:
+            checked_from = f"сервер (US/EU) ⚠️ прокси для {proxy_geo.upper()} не настроен"
+    result["checked_from"] = checked_from
 
     start = time.monotonic()
     final_response = None
     try:
-        async with httpx.AsyncClient(
+        client_kwargs = dict(
             follow_redirects=False,
             timeout=timeout,
             headers=BROWSER_HEADERS,
-            verify=False,  # gambling sites often have bad SSL
-        ) as client:
+            verify=False,
+        )
+        if proxy:
+            client_kwargs["proxy"] = proxy
+
+        async with httpx.AsyncClient(**client_kwargs) as client:
             current_url = url
             chain = [current_url]
             codes = []
@@ -161,9 +191,26 @@ async def check_link(url: str, timeout: int = 15) -> dict:
     if final_response is not None:
         result["landing"] = _analyze_landing(final_response, result["final_url"])
 
+    # Resolve server IP/geo
+    result["server_geo"] = _resolve_server_geo(result["final_url"])
+
     # Analyze
     result["issues"], result["info"] = analyze_link_issues(url, result)
     return result
+
+
+def _resolve_server_geo(url: str) -> dict | None:
+    """Resolve server IP and country for the final URL."""
+    try:
+        domain = urlparse(url).netloc
+        if not domain:
+            return None
+        ip = socket.gethostbyname(domain)
+        # Basic geo via IP ranges (Cloudflare, common providers)
+        # For real geo we'd need a GeoIP database, but IP alone is useful
+        return {"ip": ip, "domain": domain, "country": None}
+    except Exception:
+        return None
 
 
 def _analyze_landing(resp, url: str) -> dict:
@@ -374,6 +421,29 @@ async def get_user_links(db: AsyncSession, user_id: int) -> list[RefLink]:
     return list(result.scalars().all())
 
 
+async def get_last_check(db: AsyncSession, link_id: int) -> RefLinkCheck | None:
+    """Get the most recent check for a link."""
+    result = await db.execute(
+        select(RefLinkCheck)
+        .where(RefLinkCheck.link_id == link_id)
+        .order_by(RefLinkCheck.checked_at.desc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
+async def get_prev_check(db: AsyncSession, link_id: int) -> RefLinkCheck | None:
+    """Get the second-to-last check for comparison."""
+    result = await db.execute(
+        select(RefLinkCheck)
+        .where(RefLinkCheck.link_id == link_id)
+        .order_by(RefLinkCheck.checked_at.desc())
+        .limit(2)
+    )
+    checks = list(result.scalars().all())
+    return checks[1] if len(checks) >= 2 else None
+
+
 async def delete_user_link(db: AsyncSession, user_id: int, link_id: int) -> bool:
     result = await db.execute(
         select(RefLink).where(RefLink.id == link_id, RefLink.user_id == user_id)
@@ -387,7 +457,12 @@ async def delete_user_link(db: AsyncSession, user_id: int, link_id: int) -> bool
 
 
 async def check_and_save(db: AsyncSession, link: RefLink) -> RefLinkCheck:
-    result = await check_link(link.url)
+    # Get previous check for comparison
+    prev_check = await get_prev_check(db, link.id) if link.check_count and link.check_count > 0 else None
+
+    # Use link's geo for proxy routing if available
+    proxy_geo = link.geo if link.geo else None
+    result = await check_link(link.url, proxy_geo=proxy_geo)
 
     check = RefLinkCheck(
         link_id=link.id,
@@ -400,6 +475,14 @@ async def check_and_save(db: AsyncSession, link: RefLink) -> RefLinkCheck:
         landing=result.get("landing"),
     )
     db.add(check)
+
+    # Store prev data on link for comparison
+    if prev_check:
+        link._prev_response_time = prev_check.response_time_ms
+        link._prev_landing = prev_check.landing
+    else:
+        link._prev_response_time = None
+        link._prev_landing = None
 
     # Update link status
     link.last_status = _determine_status(result)
@@ -415,6 +498,8 @@ async def check_and_save(db: AsyncSession, link: RefLink) -> RefLinkCheck:
 
     await db.commit()
     await db.refresh(check)
+    # Attach checked_from for display (not persisted)
+    check._checked_from = result.get("checked_from")
     return check
 
 
@@ -454,7 +539,33 @@ def _detect_changes(link: RefLink, result: dict) -> list[str]:
         old_domains = [urlparse(u).netloc for u in link.last_redirect_chain]
         new_domains = [urlparse(u).netloc for u in result["redirect_chain"]]
         if old_domains != new_domains:
-            alerts.append(f"🚨 Цепочка доменов изменилась!")
+            alerts.append("🚨 Цепочка доменов изменилась!")
+
+    # Compare with previous check data stored on link
+    # Speed comparison
+    old_time = getattr(link, '_prev_response_time', None)
+    new_time = result.get("response_time_ms", 0)
+    if old_time and new_time and old_time > 0:
+        if new_time > old_time * 2:
+            alerts.append(f"🐌 Скорость упала: {old_time}ms → {new_time}ms")
+
+    # Landing title change
+    new_landing = result.get("landing")
+    old_landing = getattr(link, '_prev_landing', None)
+    if old_landing and new_landing:
+        old_title = old_landing.get("title", "") if isinstance(old_landing, dict) else ""
+        new_title = new_landing.get("title", "") if isinstance(new_landing, dict) else ""
+        if old_title and new_title and old_title != new_title:
+            alerts.append(f"📄 Title лендинга изменился!\n   Было: {old_title[:50]}\n   Стало: {new_title[:50]}")
+
+        # Size change > 50%
+        old_size = old_landing.get("content_length", 0) if isinstance(old_landing, dict) else 0
+        new_size = new_landing.get("content_length", 0) if isinstance(new_landing, dict) else 0
+        if old_size > 0 and new_size > 0:
+            ratio = new_size / old_size
+            if ratio < 0.5 or ratio > 2.0:
+                alerts.append(f"📦 Размер лендинга изменился: {old_size//1024}KB → {new_size//1024}KB")
+
     return alerts
 
 
@@ -546,6 +657,14 @@ def format_check_result(link: RefLink, check: RefLinkCheck) -> str:
     lines.append(f"\n📊 Проверок: {link.check_count}")
     if link.last_checked_at:
         lines.append(f"🕐 Последняя: {link.last_checked_at.strftime('%d.%m.%Y %H:%M')}")
+
+    # Geo warning
+    if link.geo:
+        checked_from = getattr(check, '_checked_from', None)
+        if checked_from and "прокси" not in (checked_from or ""):
+            lines.append(f"\n⚠️ <i>Целевое ГЕО: {link.geo.upper()} — проверено из {checked_from}. Результат может отличаться в {link.geo.upper()}.</i>")
+        elif link.geo:
+            lines.append(f"\n🌍 Целевое ГЕО: {link.geo.upper()}")
 
     return "\n".join(lines)
 

@@ -1,11 +1,16 @@
 """Bot handlers for ref link checking, redirect tracing, and stats analysis."""
+import socket
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from app.database import async_session
-from app.services.reflinks import add_ref_link, get_user_links, check_and_save, check_link, format_check_result, find_existing_link, set_user_mute
+from app.services.reflinks import (
+    add_ref_link, get_user_links, check_and_save, check_link,
+    format_check_result, find_existing_link, set_user_mute,
+    delete_user_link, get_last_check,
+)
 from app.services.stats_analyzer import analyze_stats, save_stats, format_analysis
 
 router = Router()
@@ -37,6 +42,15 @@ async def cmd_check(message: Message):
     await message.answer(text)
 
 
+def _resolve_geo(domain: str) -> str:
+    """Resolve domain to country via IP geolocation (basic)."""
+    try:
+        ip = socket.gethostbyname(domain)
+        return ip
+    except Exception:
+        return ""
+
+
 def format_trace_result(result: dict) -> str:
     """Format redirect trace result for Telegram (WhereGoes-style)."""
     chain = result.get("redirect_chain", [])
@@ -46,6 +60,7 @@ def format_trace_result(result: dict) -> str:
     status = result.get("status_code", 0)
     time_ms = result.get("response_time_ms", 0)
     landing = result.get("landing")
+    server_geo = result.get("server_geo")
     num_redirects = max(0, len(chain) - 1)
 
     lines = ["🔗 <b>Проверка ссылки</b>\n"]
@@ -110,6 +125,14 @@ def format_trace_result(result: dict) -> str:
         if size_kb > 0:
             lines.append(f"📦 Размер: {size_kb:.0f} KB")
 
+    # Server geo
+    if server_geo:
+        if server_geo.get("ip"):
+            geo_line = f"🌍 Сервер: {server_geo['ip']}"
+            if server_geo.get("country"):
+                geo_line += f" ({server_geo['country']})"
+            lines.append(geo_line)
+
     # Issues
     if issues:
         lines.append("\n⚠️ <b>Проблемы:</b>")
@@ -126,6 +149,11 @@ def format_trace_result(result: dict) -> str:
     check_url = f"https://seohub-production.up.railway.app/check?url={orig_url}"
     lines.append(f"\n🌐 <a href='{check_url}'>Подробнее на сайте →</a>")
 
+    # Show where checked from
+    checked_from = result.get("checked_from")
+    if checked_from:
+        lines.append(f"📡 Проверено из: {checked_from}")
+
     return "\n".join(lines)
 
 
@@ -133,25 +161,33 @@ def format_trace_result(result: dict) -> str:
 
 @router.message(Command("addlink"))
 async def cmd_addlink(message: Message):
-    args = message.text.split(maxsplit=1)
+    args = message.text.split(maxsplit=2)
     if len(args) < 2:
         await message.answer(
             "🔗 <b>Добавить реф.ссылку на мониторинг</b>\n\n"
-            "Формат: <code>/addlink https://your-link.com?sub_id=123</code>\n\n"
-            "Ссылка проверяется автоматически 2 раза в день (9:00 и 21:00).\n"
+            "Формат: <code>/addlink URL</code>\n"
+            "С ГЕО: <code>/addlink URL CY</code>\n\n"
+            "ГЕО нужен чтобы проверять через прокси нужной страны.\n"
+            "Проверка автоматически 2 раза в день (9:00 и 21:00).\n"
             "Если что-то сломается или изменится — пришлю алерт."
         )
         return
     url = args[1].strip()
     if not url.startswith("http"):
         url = "https://" + url
+
+    # Parse optional GEO
+    geo = ""
+    if len(args) > 2:
+        from app.services.rates import resolve_geo_alias
+        geo = resolve_geo_alias(args[2].strip())
+
     async with async_session() as db:
-        # Check for duplicate
         existing = await find_existing_link(db, message.from_user.id, url)
         if existing:
-            await message.answer(f"⚠️ Эта ссылка уже на мониторинге.\n\n/mylinks — посмотреть все")
+            await message.answer("⚠️ Эта ссылка уже на мониторинге.\n\n/mylinks — посмотреть все")
             return
-        link = await add_ref_link(db, message.from_user.id, url)
+        link = await add_ref_link(db, message.from_user.id, url, geo=geo)
         check = await check_and_save(db, link)
         await message.answer(format_check_result(link, check))
 
@@ -179,14 +215,127 @@ async def cmd_mylinks(message: Message):
         return
     status_emoji = {"ok": "✅", "dead": "💀", "suspicious": "🚩", "warning": "⚠️", "unknown": "❓"}
     lines = [f"🔗 <b>Твои ссылки ({len(links)})</b>\n"]
-    for link in links:
+    buttons = []
+    for idx, link in enumerate(links):
         emoji = status_emoji.get(link.last_status, "❓")
-        lines.append(f"{emoji} <code>{link.url[:60]}</code>")
+        geo_badge = f" [{link.geo}]" if link.geo else ""
+        lines.append(f"{idx+1}. {emoji}{geo_badge} <code>{link.url[:50]}</code>")
         if link.last_checked_at:
             lines.append(f"   Проверено: {link.last_checked_at.strftime('%d.%m %H:%M')}")
+        buttons.append([
+            InlineKeyboardButton(text=f"🔄 Проверить #{idx+1}", callback_data=f"recheck_{link.id}"),
+            InlineKeyboardButton(text=f"🗑 Удалить #{idx+1}", callback_data=f"dellink_{link.id}"),
+        ])
     lines.append(f"\n🔄 Автопроверка: 09:00 и 21:00 ежедневно")
-    lines.append(f"/checklinks — проверить все сейчас")
     lines.append(f"/mutelinks — выключить пуши")
+    lines.append(f"/report — сводка по всем ссылкам")
+
+    kb = InlineKeyboardMarkup(inline_keyboard=buttons) if buttons else None
+    await message.answer("\n".join(lines), reply_markup=kb)
+
+
+# Inline: recheck one link
+@router.callback_query(F.data.startswith("recheck_"))
+async def cb_recheck(callback: CallbackQuery):
+    link_id = int(callback.data.split("_")[1])
+    await callback.answer("🔄 Проверяю...")
+    async with async_session() as db:
+        from sqlalchemy import select
+        from app.models.features import RefLink
+        result = await db.execute(
+            select(RefLink).where(RefLink.id == link_id, RefLink.user_id == callback.from_user.id)
+        )
+        link = result.scalar_one_or_none()
+        if not link:
+            await callback.message.answer("❌ Ссылка не найдена")
+            return
+        check = await check_and_save(db, link)
+        await callback.message.answer(format_check_result(link, check))
+
+
+# Inline: delete link
+@router.callback_query(F.data.startswith("dellink_"))
+async def cb_dellink(callback: CallbackQuery):
+    link_id = int(callback.data.split("_")[1])
+    async with async_session() as db:
+        success = await delete_user_link(db, callback.from_user.id, link_id)
+    if success:
+        await callback.answer("🗑 Удалено")
+        await callback.message.answer("🗑 Ссылка удалена с мониторинга.\n\n/mylinks — оставшиеся ссылки")
+    else:
+        await callback.answer("❌ Не найдена")
+
+
+@router.message(Command("deletelink"))
+async def cmd_deletelink(message: Message):
+    async with async_session() as db:
+        links = await get_user_links(db, message.from_user.id)
+    if not links:
+        await message.answer("У тебя нет ссылок.")
+        return
+    lines = ["🗑 <b>Удалить ссылку</b>\n\nНажми кнопку чтобы удалить:\n"]
+    buttons = []
+    for idx, link in enumerate(links):
+        lines.append(f"{idx+1}. <code>{link.url[:55]}</code>")
+        buttons.append([InlineKeyboardButton(
+            text=f"🗑 Удалить #{idx+1}",
+            callback_data=f"dellink_{link.id}"
+        )])
+    kb = InlineKeyboardMarkup(inline_keyboard=buttons)
+    await message.answer("\n".join(lines), reply_markup=kb)
+
+
+# === /report — summary of all links ===
+
+@router.message(Command("report"))
+async def cmd_report(message: Message):
+    async with async_session() as db:
+        links = await get_user_links(db, message.from_user.id)
+    if not links:
+        await message.answer("У тебя нет ссылок. Добавь: <code>/addlink URL</code>")
+        return
+
+    total = len(links)
+    ok = sum(1 for l in links if l.last_status == "ok")
+    dead = sum(1 for l in links if l.last_status == "dead")
+    suspicious = sum(1 for l in links if l.last_status == "suspicious")
+    warning = sum(1 for l in links if l.last_status == "warning")
+    unknown = sum(1 for l in links if l.last_status == "unknown")
+
+    lines = ["📊 <b>Отчёт по ссылкам</b>\n"]
+    lines.append(f"Всего: {total}")
+    lines.append(f"✅ Работают: {ok}")
+    if dead:
+        lines.append(f"💀 Мёртвые: {dead}")
+    if suspicious:
+        lines.append(f"🚩 Подозрительные: {suspicious}")
+    if warning:
+        lines.append(f"⚠️ Внимание: {warning}")
+    if unknown:
+        lines.append(f"❓ Не проверены: {unknown}")
+
+    # Problem links details
+    problem_links = [l for l in links if l.last_status in ("dead", "suspicious", "warning")]
+    if problem_links:
+        lines.append("\n<b>Проблемные ссылки:</b>")
+        status_emoji = {"dead": "💀", "suspicious": "🚩", "warning": "⚠️"}
+        for link in problem_links:
+            emoji = status_emoji.get(link.last_status, "⚠️")
+            lines.append(f"\n{emoji} <code>{link.url[:60]}</code>")
+            if link.alerts:
+                for alert in link.alerts[-2:]:
+                    lines.append(f"   {alert}")
+
+    # Alerts summary
+    total_alerts = sum(len(l.alerts or []) for l in links)
+    if total_alerts:
+        lines.append(f"\n🚨 Всего алертов: {total_alerts}")
+
+    muted = sum(1 for l in links if getattr(l, 'alerts_muted', False))
+    if muted:
+        lines.append(f"🔇 Замьючено: {muted}")
+
+    lines.append("\n/checklinks — проверить все сейчас")
     await message.answer("\n".join(lines))
 
 
