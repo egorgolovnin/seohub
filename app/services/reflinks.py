@@ -397,11 +397,41 @@ def format_check_result(link: RefLink, check: RefLinkCheck) -> str:
     if link.program_name:
         lines.append(f"📋 ПП: {link.program_name}")
 
-    # Redirect chain
-    num_redirects = len(check.redirect_chain or []) - 1
+    # Redirect chain - full visualization
+    chain = check.redirect_chain or []
+    num_redirects = max(0, len(chain) - 1)
     lines.append(f"↪️ Редиректов: {num_redirects}")
-    if check.final_url and check.final_url != link.url:
-        lines.append(f"🎯 Финальный: <code>{check.final_url[:80]}</code>")
+
+    if chain:
+        lines.append("")
+        lines.append("📍 <b>Цепочка:</b>")
+        for i, url in enumerate(chain):
+            try:
+                domain = urlparse(url).netloc
+            except Exception:
+                domain = url
+
+            if i == 0:
+                prefix = "🟢 START"
+            elif i == len(chain) - 1:
+                sc = check.status_code or 200
+                prefix = "🔴 FINAL" if sc >= 400 else "🟢 FINAL"
+            else:
+                prefix = "🟡 30x"
+
+            display_url = url if len(url) <= 70 else url[:67] + "..."
+            lines.append(f"{prefix}")
+            lines.append(f"<code>{display_url}</code>")
+
+            if i < len(chain) - 1:
+                try:
+                    next_domain = urlparse(chain[i + 1]).netloc
+                    if domain != next_domain:
+                        lines.append(f"  ↓ <i>{domain} → {next_domain}</i>")
+                    else:
+                        lines.append("  ↓")
+                except Exception:
+                    lines.append("  ↓")
 
     # Issues (problems)
     issues = check.issues or []
@@ -410,8 +440,6 @@ def format_check_result(link: RefLink, check: RefLinkCheck) -> str:
         for issue in issues:
             lines.append(issue)
 
-    # Info (good things)
-    # info is stored in check but we need to recalculate since model doesn't store it
     # Show basic info from status
     if not issues:
         if link.last_status == "ok":
