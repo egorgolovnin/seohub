@@ -28,22 +28,50 @@ def get_bot() -> Bot:
 
 @router.message(Command("start"))
 async def cmd_start(message: Message):
+    site = "https://seohub-production.up.railway.app"
     text = (
-        "👋 <b>SEOhub Bot</b>\n\n"
+        "👋 <b>SEOhub Bot</b>\n"
+        "📢 Канал: @seohub_blog\n\n"
+
         "💰 <b>Ставки CPA:</b>\n"
         "/rates DE — ставки (Германия, Germany...)\n"
         "/cpa — все CPA ставки\n\n"
+
         "🔗 <b>Мониторинг ссылок:</b>\n"
         "/check URL — цепочка редиректов\n"
         "/addlink URL — на мониторинг\n"
         "/mylinks — мои ссылки\n"
         "/deletelink — удалить ссылку\n"
         "/report — сводка по всем\n\n"
+
         "📊 <b>Антишейв-анализ:</b>\n"
-        "/analyze — проверить стату из ПП\n\n"
+        "/analyze — кинь скриншот или текст из ПП\n\n"
+
+        f"🌐 <b>На сайте:</b>\n"
+        f"<a href='{site}'>Главная</a> · "
+        f"<a href='{site}/check'>Проверка ссылок</a> · "
+        f"<a href='{site}/#geo'>Ставки</a> · "
+        f"<a href='{site}/#tools'>Инструменты</a> · "
+        f"<a href='{site}/#con'>Консьерж</a> · "
+        f"<a href='{site}/#sites'>Купля/продажа</a>\n\n"
+
         "Или просто напиши ГЕО: DE, Германия, Germany..."
     )
-    await message.answer(text)
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="📢 Канал", url="https://t.me/seohub_blog"),
+            InlineKeyboardButton(text="🌐 Сайт", url=site),
+        ],
+        [
+            InlineKeyboardButton(text="🔗 Проверка ссылок", url=f"{site}/check"),
+            InlineKeyboardButton(text="💰 Ставки", url=f"{site}/#geo"),
+        ],
+        [
+            InlineKeyboardButton(text="🛠 Инструменты", url=f"{site}/#tools"),
+            InlineKeyboardButton(text="🤝 Консьерж", url=f"{site}/#con"),
+        ],
+    ])
+    await message.answer(text, reply_markup=kb)
 
 
 @router.message(Command("rates"))
