@@ -11,7 +11,6 @@ from app.services.reflinks import (
     format_check_result, find_existing_link, set_user_mute,
     delete_user_link, get_last_check,
 )
-from app.services.stats_analyzer import analyze_stats, save_stats, format_analysis
 
 router = Router()
 
@@ -359,7 +358,7 @@ async def cmd_unmutelinks(message: Message):
         await message.answer("У тебя нет ссылок. Добавь: <code>/addlink URL</code>")
 
 
-# === Feature 4: Stats Analysis ===
+# === Feature 4: AI Stats Analysis ===
 
 class StatsInput(StatesGroup):
     waiting_data = State()
@@ -368,72 +367,102 @@ class StatsInput(StatesGroup):
 @router.message(Command("analyze"))
 async def cmd_analyze(message: Message, state: FSMContext):
     await message.answer(
-        "📊 <b>Анализ статистики партнёрки</b>\n\n"
-        "Отправь данные в формате:\n"
-        "<code>ПП: Royal Partners\n"
-        "ГЕО: DE\n"
-        "Период: 2026-04\n"
-        "Модель: RS\n"
-        "Клики: 15000\n"
-        "Реги: 1200\n"
-        "FTD: 180\n"
-        "Депозиты: 24000\n"
-        "GGR: 8500\n"
-        "Комиссия: 2550</code>\n\n"
-        "Я проверю метрики и скажу если что-то подозрительно."
+        "📊 <b>Антишейв-анализ</b>\n\n"
+        "Кинь мне данные из партнёрки любым удобным способом:\n\n"
+        "📸 <b>Скриншот</b> — сфоткай дашборд ПП\n"
+        "📝 <b>Текст</b> — скопируй таблицу или цифры\n"
+        "📎 <b>Файл</b> — CSV/Excel выгрузка\n\n"
+        "Я разберу данные, посчитаю конверсии и скажу если что-то подозрительно."
     )
     await state.set_state(StatsInput.waiting_data)
 
 
-@router.message(StatsInput.waiting_data)
-async def process_stats(message: Message, state: FSMContext):
+@router.message(StatsInput.waiting_data, F.photo)
+async def process_stats_photo(message: Message, state: FSMContext):
     await state.clear()
-    parsed = parse_stats_input(message.text)
-    if not parsed:
-        await message.answer("❌ Не удалось разобрать данные. Проверь формат и попробуй снова: /analyze")
+    await message.answer("🔄 Анализирую скриншот...")
+
+    from app.services.ai import analyze_stats_ai
+    from app.bot.main import get_bot
+
+    bot = get_bot()
+    photo = message.photo[-1]  # highest resolution
+    file = await bot.get_file(photo.file_id)
+    data = await bot.download_file(file.file_path)
+    image_bytes = data.read()
+
+    # Also use caption as additional context
+    caption = message.caption or ""
+
+    result = await analyze_stats_ai(text=caption, image_data=image_bytes, image_mime="image/jpeg")
+    # Split long messages
+    if len(result) > 4000:
+        for i in range(0, len(result), 4000):
+            await message.answer(result[i:i+4000])
+    else:
+        await message.answer(result)
+
+
+@router.message(StatsInput.waiting_data, F.document)
+async def process_stats_document(message: Message, state: FSMContext):
+    await state.clear()
+    await message.answer("🔄 Анализирую файл...")
+
+    from app.services.ai import analyze_stats_ai
+    from app.bot.main import get_bot
+
+    bot = get_bot()
+    doc = message.document
+    file = await bot.get_file(doc.file_id)
+    data = await bot.download_file(file.file_path)
+    file_bytes = data.read()
+
+    mime = doc.mime_type or ""
+    if "image" in mime:
+        result = await analyze_stats_ai(image_data=file_bytes, image_mime=mime)
+    elif "csv" in mime or doc.file_name.endswith(".csv"):
+        text_content = file_bytes.decode("utf-8", errors="replace")
+        result = await analyze_stats_ai(text=text_content)
+    elif "spreadsheet" in mime or "excel" in mime or doc.file_name.endswith((".xlsx", ".xls")):
+        # Try to parse Excel
+        try:
+            import io
+            import openpyxl
+            wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
+            lines = []
+            for sheet in wb.worksheets[:3]:
+                lines.append(f"=== {sheet.title} ===")
+                for row in sheet.iter_rows(max_row=50, values_only=True):
+                    vals = [str(v) if v is not None else "" for v in row]
+                    lines.append("\t".join(vals))
+            text_content = "\n".join(lines)
+            result = await analyze_stats_ai(text=text_content)
+        except Exception as e:
+            result = f"❌ Не удалось прочитать Excel: {str(e)[:100]}\n\nПопробуй скриншот или CSV."
+    else:
+        text_content = file_bytes.decode("utf-8", errors="replace")[:5000]
+        result = await analyze_stats_ai(text=text_content)
+
+    if len(result) > 4000:
+        for i in range(0, len(result), 4000):
+            await message.answer(result[i:i+4000])
+    else:
+        await message.answer(result)
+
+
+@router.message(StatsInput.waiting_data)
+async def process_stats_text(message: Message, state: FSMContext):
+    await state.clear()
+    if not message.text:
+        await message.answer("❌ Отправь текст, скриншот или файл. Попробуй снова: /analyze")
         return
-    analysis = analyze_stats(parsed, parsed.get("geo", ""))
-    async with async_session() as db:
-        await save_stats(db, message.from_user.id, parsed, analysis)
-    await message.answer(format_analysis(parsed, analysis))
+    await message.answer("🔄 Анализирую данные...")
 
+    from app.services.ai import analyze_stats_ai
+    result = await analyze_stats_ai(text=message.text)
 
-def parse_stats_input(text: str) -> dict | None:
-    """Parse user input for stats analysis."""
-    lines = text.strip().split("\n")
-    data = {}
-    field_map = {
-        "пп": "program_name", "pp": "program_name", "партнёрка": "program_name", "партнерка": "program_name",
-        "гео": "geo", "geo": "geo",
-        "период": "period", "period": "period",
-        "модель": "model", "model": "model",
-        "клики": "clicks", "clicks": "clicks",
-        "реги": "registrations", "реги": "registrations", "registrations": "registrations", "регистрации": "registrations",
-        "ftd": "ftd", "фтд": "ftd",
-        "депозиты": "deposits_sum", "deposits": "deposits_sum", "сумма депозитов": "deposits_sum",
-        "ggr": "ggr", "ггр": "ggr",
-        "комиссия": "commission", "commission": "commission", "доход": "commission",
-    }
-    numeric_fields = {"clicks", "registrations", "ftd", "deposits_sum", "ggr", "commission"}
-
-    for line in lines:
-        line = line.strip()
-        if ":" not in line:
-            continue
-        key, value = line.split(":", 1)
-        key = key.strip().lower()
-        value = value.strip()
-        field = field_map.get(key)
-        if field:
-            if field in numeric_fields:
-                try:
-                    value = value.replace("$", "").replace(",", "").replace(" ", "")
-                    data[field] = float(value)
-                except ValueError:
-                    continue
-            else:
-                data[field] = value
-
-    if not data.get("clicks") and not data.get("ftd"):
-        return None
-    return data
+    if len(result) > 4000:
+        for i in range(0, len(result), 4000):
+            await message.answer(result[i:i+4000])
+    else:
+        await message.answer(result)

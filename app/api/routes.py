@@ -91,3 +91,52 @@ async def reload_cpa(db: AsyncSession = Depends(get_db)):
         db.add(GeoRateCPA(geo=geo, min_cpa=float(mn), avg_cpa=float(avg), max_cpa=float(mx), data_points=1, sources="seohub", programs=""))
     await db.commit()
     return {"ok": True, "loaded": len(CPA)}
+
+class BBLRequest(BaseModel):
+    name: str = ""
+    telegram: str
+
+
+@router.post("/bbl-request")
+async def api_bbl_request(req: BBLRequest):
+    from app.bot.main import get_bot
+    from app.config import get_settings
+    settings = get_settings()
+    if settings.admin_chat_id:
+        bot = get_bot()
+        text = (
+            f"🔗 <b>Заявка на BetBuddy Link</b>\n\n"
+            f"👤 Имя: {req.name or 'не указано'}\n"
+            f"📱 Telegram: {req.telegram}"
+        )
+        try:
+            await bot.send_message(settings.admin_chat_id, text)
+        except Exception:
+            pass
+    return {"ok": True}
+
+
+class LeadRequest(BaseModel):
+    name: str = ""
+    telegram: str
+    product: str = ""
+
+
+@router.post("/lead")
+async def api_lead(req: LeadRequest):
+    from app.bot.main import get_bot
+    from app.config import get_settings
+    settings = get_settings()
+    if settings.admin_chat_id:
+        bot = get_bot()
+        text = (
+            f"📩 <b>Новая заявка</b>\n\n"
+            f"🛒 Продукт: {req.product}\n"
+            f"👤 Имя: {req.name or 'не указано'}\n"
+            f"📱 Telegram: {req.telegram}"
+        )
+        try:
+            await bot.send_message(settings.admin_chat_id, text)
+        except Exception:
+            pass
+    return {"ok": True}
