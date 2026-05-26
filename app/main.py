@@ -25,6 +25,21 @@ async def lifespan(app: FastAPI):
     bot = get_bot()
     settings = get_settings()
 
+    # Register bot commands menu
+    from aiogram.types import BotCommand
+    await bot.set_my_commands([
+        BotCommand(command="start", description="Главное меню"),
+        BotCommand(command="rates", description="Ставки по ГЕО (DE, Германия...)"),
+        BotCommand(command="cpa", description="Все CPA ставки"),
+        BotCommand(command="check", description="Проверка ссылки — цепочка редиректов"),
+        BotCommand(command="addlink", description="Добавить ссылку на мониторинг"),
+        BotCommand(command="mylinks", description="Мои ссылки"),
+        BotCommand(command="deletelink", description="Удалить ссылку"),
+        BotCommand(command="report", description="Сводка по всем ссылкам"),
+        BotCommand(command="analyze", description="Антишейв — скриншот или текст из ПП"),
+        BotCommand(command="help", description="Помощь"),
+    ])
+
     # Set webhook for Railway (or use polling for dev)
     if settings.app_env == "production":
         # Webhook mode
