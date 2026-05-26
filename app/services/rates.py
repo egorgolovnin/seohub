@@ -195,13 +195,14 @@ def format_rates_message(geo: str, data: dict) -> str:
     if data.get("cpa"):
         c = data["cpa"]
         lines.append(f"💰 <b>CPA:</b> ${c['min']:.0f} → <b>${c['avg']:.0f}</b> → ${c['max']:.0f}")
+        lines.append(f"    <i>мин / средняя / макс</i>")
     else:
         lines.append("Нет данных по этому ГЕО")
     return "\n".join(lines)
 
 
 def format_rates_list(rates: list[dict], rate_type: str) -> str:
-    header = "💰 <b>CPA ставки по ГЕО</b>\n\n"
+    header = "💰 <b>CPA ставки по ГЕО</b>\n<i>мин → средняя → макс</i>\n\n"
     lines = []
     for r in rates:
         lines.append(f"<b>{r['geo']}</b>: ${r['min']:.0f} → <b>${r['avg']:.0f}</b> → ${r['max']:.0f}")

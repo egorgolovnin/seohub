@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
-from app.services.rates import get_cpa_rates, get_rs_rates, get_pp_conditions, get_rate_for_geo
+from app.services.rates import get_cpa_rates, get_pp_conditions, get_rate_for_geo
 from app.services.reflinks import check_link
 from app.services.stats_analyzer import analyze_stats
 
@@ -13,12 +13,6 @@ router = APIRouter(prefix="/api", tags=["api"])
 async def api_cpa_rates(geo: str = Query(None), db: AsyncSession = Depends(get_db)):
     rates = await get_cpa_rates(db, geo)
     return {"type": "cpa", "count": len(rates), "data": rates}
-
-
-@router.get("/rates/rs")
-async def api_rs_rates(geo: str = Query(None), db: AsyncSession = Depends(get_db)):
-    rates = await get_rs_rates(db, geo)
-    return {"type": "rs", "count": len(rates), "data": rates}
 
 
 @router.get("/rates/{geo}")

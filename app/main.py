@@ -9,7 +9,7 @@ from app.config import get_settings
 from app.database import async_session, init_db
 from app.api.routes import router as api_router
 from app.bot.main import get_bot, create_dispatcher
-from app.services.rates import get_cpa_rates, get_rs_rates
+from app.services.rates import get_cpa_rates
 from app.services.scheduler import start_scheduler
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
@@ -73,15 +73,10 @@ async def check_page():
 async def rates_page(request: Request):
     async with async_session() as db:
         cpa = await get_cpa_rates(db)
-        rs = await get_rs_rates(db)
-    total_points = sum(r["points"] or 0 for r in cpa) + sum(r["points"] or 0 for r in rs)
     return templates.TemplateResponse(name="rates.html", request=request, context={
         "request": request,
         "cpa_rates": cpa,
-        "rs_rates": rs,
-        "total_points": total_points,
-        "total_geos": len(cpa) + len(rs),
-        "total_pp": 34,
+        "total_geos": len(cpa),
     })
 
 

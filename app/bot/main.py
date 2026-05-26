@@ -31,8 +31,7 @@ async def cmd_start(message: Message):
     text = (
         "👋 <b>SEOhub Bot</b>\n\n"
         "💰 <b>Ставки CPA:</b>\n"
-        "/rates DE — ставки по ГЕО\n"
-        "/rates Германия — работает!\n"
+        "/rates DE — ставки (Германия, Germany...)\n"
         "/cpa — все CPA ставки\n\n"
         "🔗 <b>Проверка ссылок:</b>\n"
         "/check URL — цепочка редиректов\n"
