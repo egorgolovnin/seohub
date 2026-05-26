@@ -31,7 +31,7 @@ async def cmd_start(message: Message):
     site = "https://seohub-production.up.railway.app"
     text = (
         "👋 <b>SEOhub Bot</b>\n"
-        "📢 Канал: @seohub_blog\n\n"
+        "📢 Канал: @seonewsbyhub\n\n"
 
         "💰 <b>Ставки CPA:</b>\n"
         "/rates DE — ставки (Германия, Germany...)\n"
