@@ -156,13 +156,8 @@ async def analyze_stats_ai(text: str = None, image_data: bytes = None, image_mim
 async def _notify_admin_api_call(action: str, user_info: str):
     """Send notification to admin about API usage."""
     try:
-        settings = get_settings()
-        if not settings.admin_group_id or settings.admin_chat_id:
-            return
-        from app.bot.main import get_bot
-        bot = get_bot()
-        text = f"🔄 <b>API запрос</b>\n📊 Действие: {action}\n👤 {user_info}"
-        await bot.send_message(settings.admin_group_id or settings.admin_chat_id, text)
+        from app.bot.main import notify_admin
+        await notify_admin(f"🔄 <b>API запрос</b>\n📊 Действие: {action}\n👤 {user_info}")
     except Exception as e:
         logger.error(f"Admin notify error: {e}")
 
@@ -170,11 +165,7 @@ async def _notify_admin_api_call(action: str, user_info: str):
 async def _notify_admin_api_result(user_info: str, input_tokens: int, output_tokens: int, cost: float):
     """Send cost notification to admin after API call."""
     try:
-        settings = get_settings()
-        if not settings.admin_group_id or settings.admin_chat_id:
-            return
-        from app.bot.main import get_bot
-        bot = get_bot()
+        from app.bot.main import notify_admin
         text = (
             f"✅ <b>API завершён</b>\n"
             f"👤 {user_info}\n"
@@ -182,6 +173,6 @@ async def _notify_admin_api_result(user_info: str, input_tokens: int, output_tok
             f"📤 Output: {output_tokens} токенов\n"
             f"💰 Стоимость: ~${cost:.4f}"
         )
-        await bot.send_message(settings.admin_group_id or settings.admin_chat_id, text)
+        await notify_admin(text)
     except Exception as e:
         logger.error(f"Admin notify error: {e}")

@@ -63,21 +63,14 @@ class IoffersRequest(BaseModel):
 
 @router.post("/ioffers-request")
 async def api_ioffers_request(req: IoffersRequest):
-    from app.bot.main import get_bot
-    from app.config import get_settings
-    settings = get_settings()
-    if settings.admin_group_id or settings.admin_chat_id:
-        bot = get_bot()
-        text = (
-            f"📊 <b>Заявка на iOffers</b>\n\n"
-            f"👤 Telegram: {req.telegram}\n"
-            f"🌐 Сайт: {req.site or 'не указан'}\n"
-            f"💬 Комментарий: {req.comment or 'нет'}"
-        )
-        try:
-            await bot.send_message(settings.admin_group_id or settings.admin_chat_id, text)
-        except Exception:
-            pass
+    from app.bot.main import notify_admin
+    text = (
+        f"📊 <b>Заявка на iOffers</b>\n\n"
+        f"👤 Telegram: {req.telegram}\n"
+        f"🌐 Сайт: {req.site or 'не указан'}\n"
+        f"💬 Комментарий: {req.comment or 'нет'}"
+    )
+    await notify_admin(text)
     return {"ok": True}
 
 
@@ -99,20 +92,13 @@ class BBLRequest(BaseModel):
 
 @router.post("/bbl-request")
 async def api_bbl_request(req: BBLRequest):
-    from app.bot.main import get_bot
-    from app.config import get_settings
-    settings = get_settings()
-    if settings.admin_group_id or settings.admin_chat_id:
-        bot = get_bot()
-        text = (
-            f"🔗 <b>Заявка на BetBuddy Link</b>\n\n"
-            f"👤 Имя: {req.name or 'не указано'}\n"
-            f"📱 Telegram: {req.telegram}"
-        )
-        try:
-            await bot.send_message(settings.admin_group_id or settings.admin_chat_id, text)
-        except Exception:
-            pass
+    from app.bot.main import notify_admin
+    text = (
+        f"🔗 <b>Заявка на BetBuddy Link</b>\n\n"
+        f"👤 Имя: {req.name or 'не указано'}\n"
+        f"📱 Telegram: {req.telegram}"
+    )
+    await notify_admin(text)
     return {"ok": True}
 
 
@@ -125,40 +111,33 @@ class LeadRequest(BaseModel):
 
 @router.post("/lead")
 async def api_lead(req: LeadRequest):
-    from app.bot.main import get_bot
-    from app.config import get_settings
-    settings = get_settings()
-    if settings.admin_group_id or settings.admin_chat_id:
-        bot = get_bot()
-        text = (
-            f"📩 <b>Новая заявка</b>\n\n"
-            f"🛒 Продукт: {req.product}\n"
-            f"👤 Имя: {req.name or 'не указано'}\n"
-            f"📱 Telegram: {req.telegram}"
-        )
-        if req.details:
-            try:
-                import json
-                d = json.loads(req.details)
-                detail_lines = []
-                labels = {
-                    "vert": "Вертикаль", "geo": "ГЕО", "vol": "Объём",
-                    "model": "Модель", "rate": "Ставка", "budget": "Бюджет",
-                    "site": "Сайт", "domain": "Домен", "traffic": "Трафик",
-                    "income": "Доход", "price": "Цена", "pp": "ПП", "text": "Описание",
-                }
-                for k, v in d.items():
-                    if v:
-                        label = labels.get(k, k)
-                        detail_lines.append(f"  {label}: {v}")
-                if detail_lines:
-                    text += "\n\n📋 <b>Детали:</b>\n" + "\n".join(detail_lines)
-            except Exception:
-                text += f"\n📋 {req.details}"
+    from app.bot.main import notify_admin
+    text = (
+        f"📩 <b>Новая заявка</b>\n\n"
+        f"🛒 Продукт: {req.product}\n"
+        f"👤 Имя: {req.name or 'не указано'}\n"
+        f"📱 Telegram: {req.telegram}"
+    )
+    if req.details:
         try:
-            await bot.send_message(settings.admin_group_id or settings.admin_chat_id, text)
+            import json
+            d = json.loads(req.details)
+            detail_lines = []
+            labels = {
+                "vert": "Вертикаль", "geo": "ГЕО", "vol": "Объём",
+                "model": "Модель", "rate": "Ставка", "budget": "Бюджет",
+                "site": "Сайт", "domain": "Домен", "traffic": "Трафик",
+                "income": "Доход", "price": "Цена", "pp": "ПП", "text": "Описание",
+            }
+            for k, v in d.items():
+                if v:
+                    label = labels.get(k, k)
+                    detail_lines.append(f"  {label}: {v}")
+            if detail_lines:
+                text += "\n\n📋 <b>Детали:</b>\n" + "\n".join(detail_lines)
         except Exception:
-            pass
+            text += f"\n📋 {req.details}"
+    await notify_admin(text)
     return {"ok": True}
 
 

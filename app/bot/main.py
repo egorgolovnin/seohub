@@ -24,11 +24,38 @@ def get_bot() -> Bot:
     return bot
 
 
+def _admin_chat() -> int:
+    """Get admin group or fallback to admin chat."""
+    settings = get_settings()
+    return settings.admin_group_id or settings.admin_chat_id
+
+
+async def notify_admin(text: str, reply_markup=None):
+    """Send notification to admin group."""
+    target = _admin_chat()
+    if not target:
+        return
+    try:
+        b = get_bot()
+        await b.send_message(target, text, reply_markup=reply_markup, parse_mode=ParseMode.HTML)
+    except Exception as e:
+        logger.error(f"Admin notify error: {e}")
+
+
+async def notify_activity(user: str, action: str, details: str = ""):
+    """Log user activity to admin group."""
+    text = f"👤 <b>{user}</b> → {action}"
+    if details:
+        text += f"\n{details}"
+    await notify_admin(text)
+
+
 # === RATES COMMANDS ===
 
 @router.message(Command("start"))
 async def cmd_start(message: Message):
     site = "https://seohub-production.up.railway.app"
+    user = f"@{message.from_user.username}" if message.from_user.username else str(message.from_user.id)
     text = (
         "👋 <b>SEOhub Bot</b>\n"
         "📢 Канал: @seonewsbyhub\n\n"
@@ -72,6 +99,7 @@ async def cmd_start(message: Message):
         ],
     ])
     await message.answer(text, reply_markup=kb)
+    await notify_activity(user, "🚀 /start")
 
 
 @router.message(Command("rates"))
@@ -172,10 +200,6 @@ async def weekly_callback(callback: CallbackQuery):
 # === SEND FUNCTIONS (called from scheduler) ===
 
 async def send_digest_approval(post: DigestPost):
-    settings = get_settings()
-    if not settings.admin_chat_id:
-        return
-    b = get_bot()
     text = (
         f"📝 <b>Пост на апрув</b>\n\n"
         f"📢 {post.channel_name}\n"
@@ -190,28 +214,26 @@ async def send_digest_approval(post: DigestPost):
             InlineKeyboardButton(text="❌ Отклонить", callback_data=f"digest_reject_{post.id}"),
         ]
     ])
-    await b.send_message(settings.admin_chat_id, text, reply_markup=kb, parse_mode=ParseMode.HTML)
+    await notify_admin(text, reply_markup=kb)
 
 
 async def send_weekly_digest_approval(weekly: WeeklyDigest, posts: list[DigestPost]):
-    settings = get_settings()
-    if not settings.admin_chat_id:
-        return
-    b = get_bot()
     text = format_weekly_digest(weekly.summary, posts)
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="✅ Опубликовать", callback_data="weekly_publish")]
     ])
-    await b.send_message(settings.admin_chat_id, text, reply_markup=kb, parse_mode=ParseMode.HTML)
+    await notify_admin(text, reply_markup=kb)
 
 
 # === ALERT for link monitoring (called from scheduler) ===
 
 async def send_link_alert(user_id: int, text: str):
-    """Send alert to user about link status change."""
+    """Send alert to user AND admin group about link status change."""
     try:
         b = get_bot()
         await b.send_message(user_id, text, parse_mode=ParseMode.HTML)
+        # Also notify admin group
+        await notify_admin(f"🔔 Link alert sent to {user_id}:\n{text[:300]}")
     except Exception as e:
         logger.error(f"Failed to send link alert to {user_id}: {e}")
 

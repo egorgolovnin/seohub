@@ -41,6 +41,10 @@ async def cmd_check(message: Message):
 
     await message.answer("🔄 Проверяю цепочку редиректов...")
 
+    from app.bot.main import notify_activity
+    user = f"@{message.from_user.username}" if message.from_user.username else str(message.from_user.id)
+    await notify_activity(user, "🔗 /check", f"URL: <code>{url[:70]}</code>")
+
     result = await check_link(url)
     text = format_trace_result(result)
     await message.answer(text)
@@ -177,6 +181,11 @@ async def cmd_addlink(message: Message):
         link = await add_ref_link(db, message.from_user.id, url, geo=geo)
         check = await check_and_save(db, link)
         await message.answer(format_check_result(link, check))
+
+    from app.bot.main import notify_activity
+    user = f"@{message.from_user.username}" if message.from_user.username else str(message.from_user.id)
+    geo_str = f" [{geo}]" if geo else ""
+    await notify_activity(user, f"➕ /addlink{geo_str}", f"URL: <code>{url[:70]}</code>")
 
 
 @router.message(Command("checklinks"))
@@ -480,19 +489,16 @@ async def process_stats_text(message: Message, state: FSMContext):
 
 
 async def _send_analyze_approval(rid: int, user_info: str, description: str):
-    """Send analyze request to admin group for approval."""
-    from app.bot.main import get_bot
-    from app.config import get_settings
+    """Send analyze request to admin group for approval with cost estimate."""
+    from app.bot.main import notify_admin
 
-    settings = get_settings()
-    target_chat = settings.admin_group_id or settings.admin_chat_id
-    if not target_chat:
-        return
+    # Estimate cost: ~1000 input + ~1500 output tokens for haiku
+    est_cost = "$0.005–0.01"
 
-    bot = get_bot()
     text = (
         f"📊 <b>Заявка на анализ #{rid}</b>\n\n"
         f"👤 Пользователь: {user_info}\n"
+        f"💰 Примерная стоимость: {est_cost}\n\n"
         f"📋 Данные: {description[:500]}"
     )
     kb = InlineKeyboardMarkup(inline_keyboard=[
@@ -501,7 +507,7 @@ async def _send_analyze_approval(rid: int, user_info: str, description: str):
             InlineKeyboardButton(text="❌ Отклонить", callback_data=f"analyze_reject_{rid}"),
         ]
     ])
-    await bot.send_message(target_chat, text, reply_markup=kb)
+    await notify_admin(text, reply_markup=kb)
 
 
 @router.callback_query(F.data.startswith("analyze_approve_"))
@@ -544,6 +550,13 @@ async def cb_analyze_approve(callback: CallbackQuery):
             await bot.send_message(pending["chat_id"], result)
     except Exception as e:
         await callback.message.answer(f"❌ Не удалось отправить результат пользователю: {e}")
+
+    # Send result to admin group
+    from app.bot.main import notify_admin
+    admin_text = f"✅ <b>Анализ #{rid} выполнен</b>\n👤 {pending.get('user_info', '')}\n\n{result[:1000]}"
+    if len(result) > 1000:
+        admin_text += "\n..."
+    await notify_admin(admin_text)
 
 
 @router.callback_query(F.data.startswith("analyze_reject_"))
