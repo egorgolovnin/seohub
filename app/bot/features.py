@@ -1,5 +1,6 @@
 """Bot handlers for ref link checking, redirect tracing, and stats analysis."""
 import socket
+import base64
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
@@ -13,6 +14,10 @@ from app.services.reflinks import (
 )
 
 router = Router()
+
+# Pending analyze requests: {request_id: {user_id, chat_id, text, image_data, image_mime, user_info}}
+_pending_analyze = {}
+_analyze_counter = 0
 
 
 # === Feature: Redirect Trace (/check) ===
@@ -41,15 +46,6 @@ async def cmd_check(message: Message):
     await message.answer(text)
 
 
-def _resolve_geo(domain: str) -> str:
-    """Resolve domain to country via IP geolocation (basic)."""
-    try:
-        ip = socket.gethostbyname(domain)
-        return ip
-    except Exception:
-        return ""
-
-
 def format_trace_result(result: dict) -> str:
     """Format redirect trace result for Telegram (WhereGoes-style)."""
     chain = result.get("redirect_chain", [])
@@ -64,7 +60,6 @@ def format_trace_result(result: dict) -> str:
 
     lines = ["🔗 <b>Проверка ссылки</b>\n"]
 
-    # Summary line
     if any("💀" in i for i in issues):
         lines.append("❌ <b>Статус: Мёртвая</b>")
     elif any("🚩" in i for i in issues):
@@ -76,7 +71,6 @@ def format_trace_result(result: dict) -> str:
 
     lines.append(f"↪️ Редиректов: {num_redirects} | HTTP {status} | {time_ms}ms\n")
 
-    # Chain visualization with HTTP codes
     if chain:
         lines.append("📍 <b>Цепочка:</b>\n")
         from urllib.parse import urlparse
@@ -109,7 +103,6 @@ def format_trace_result(result: dict) -> str:
                 except Exception:
                     lines.append("  ↓")
 
-    # Landing page analysis
     if landing:
         lines.append("\n🌐 <b>Лендинг:</b>")
         if landing.get("title"):
@@ -124,7 +117,6 @@ def format_trace_result(result: dict) -> str:
         if size_kb > 0:
             lines.append(f"📦 Размер: {size_kb:.0f} KB")
 
-    # Server geo
     if server_geo:
         if server_geo.get("ip"):
             geo_line = f"🌍 Сервер: {server_geo['ip']}"
@@ -132,13 +124,11 @@ def format_trace_result(result: dict) -> str:
                 geo_line += f" ({server_geo['country']})"
             lines.append(geo_line)
 
-    # Issues
     if issues:
         lines.append("\n⚠️ <b>Проблемы:</b>")
         for issue in issues[:5]:
             lines.append(issue)
 
-    # Info
     if info:
         lines.append("\nℹ️ <b>Инфо:</b>")
         for item in info[:5]:
@@ -148,7 +138,6 @@ def format_trace_result(result: dict) -> str:
     check_url = f"https://seohub-production.up.railway.app/check?url={orig_url}"
     lines.append(f"\n🌐 <a href='{check_url}'>Подробнее на сайте →</a>")
 
-    # Show where checked from
     checked_from = result.get("checked_from")
     if checked_from:
         lines.append(f"📡 Проверено из: {checked_from}")
@@ -175,7 +164,6 @@ async def cmd_addlink(message: Message):
     if not url.startswith("http"):
         url = "https://" + url
 
-    # Parse optional GEO
     geo = ""
     if len(args) > 2:
         from app.services.rates import resolve_geo_alias
@@ -222,8 +210,8 @@ async def cmd_mylinks(message: Message):
         if link.last_checked_at:
             lines.append(f"   Проверено: {link.last_checked_at.strftime('%d.%m %H:%M')}")
         buttons.append([
-            InlineKeyboardButton(text=f"🔄 Проверить #{idx+1}", callback_data=f"recheck_{link.id}"),
-            InlineKeyboardButton(text=f"🗑 Удалить #{idx+1}", callback_data=f"dellink_{link.id}"),
+            InlineKeyboardButton(text=f"🔄 #{idx+1}", callback_data=f"recheck_{link.id}"),
+            InlineKeyboardButton(text=f"🗑 #{idx+1}", callback_data=f"dellink_{link.id}"),
         ])
     lines.append(f"\n🔄 Автопроверка: 09:00 и 21:00 ежедневно")
     lines.append(f"/mutelinks — выключить пуши")
@@ -233,7 +221,6 @@ async def cmd_mylinks(message: Message):
     await message.answer("\n".join(lines), reply_markup=kb)
 
 
-# Inline: recheck one link
 @router.callback_query(F.data.startswith("recheck_"))
 async def cb_recheck(callback: CallbackQuery):
     link_id = int(callback.data.split("_")[1])
@@ -252,7 +239,6 @@ async def cb_recheck(callback: CallbackQuery):
         await callback.message.answer(format_check_result(link, check))
 
 
-# Inline: delete link
 @router.callback_query(F.data.startswith("dellink_"))
 async def cb_dellink(callback: CallbackQuery):
     link_id = int(callback.data.split("_")[1])
@@ -284,8 +270,6 @@ async def cmd_deletelink(message: Message):
     await message.answer("\n".join(lines), reply_markup=kb)
 
 
-# === /report — summary of all links ===
-
 @router.message(Command("report"))
 async def cmd_report(message: Message):
     async with async_session() as db:
@@ -313,7 +297,6 @@ async def cmd_report(message: Message):
     if unknown:
         lines.append(f"❓ Не проверены: {unknown}")
 
-    # Problem links details
     problem_links = [l for l in links if l.last_status in ("dead", "suspicious", "warning")]
     if problem_links:
         lines.append("\n<b>Проблемные ссылки:</b>")
@@ -325,7 +308,6 @@ async def cmd_report(message: Message):
                 for alert in link.alerts[-2:]:
                     lines.append(f"   {alert}")
 
-    # Alerts summary
     total_alerts = sum(len(l.alerts or []) for l in links)
     if total_alerts:
         lines.append(f"\n🚨 Всего алертов: {total_alerts}")
@@ -358,10 +340,25 @@ async def cmd_unmutelinks(message: Message):
         await message.answer("У тебя нет ссылок. Добавь: <code>/addlink URL</code>")
 
 
-# === Feature 4: AI Stats Analysis ===
+# === Feature 4: AI Stats Analysis (with admin approval) ===
 
 class StatsInput(StatesGroup):
     waiting_data = State()
+
+
+def _save_pending(user_id: int, chat_id: int, user_info: str, text: str = None, image_data: bytes = None, image_mime: str = "image/jpeg") -> int:
+    global _analyze_counter
+    _analyze_counter += 1
+    rid = _analyze_counter
+    _pending_analyze[rid] = {
+        "user_id": user_id,
+        "chat_id": chat_id,
+        "user_info": user_info,
+        "text": text,
+        "image_data": base64.b64encode(image_data).decode() if image_data else None,
+        "image_mime": image_mime,
+    }
+    return rid
 
 
 @router.message(Command("analyze"))
@@ -372,7 +369,7 @@ async def cmd_analyze(message: Message, state: FSMContext):
         "📸 <b>Скриншот</b> — сфоткай дашборд ПП\n"
         "📝 <b>Текст</b> — скопируй таблицу или цифры\n"
         "📎 <b>Файл</b> — CSV/Excel выгрузка\n\n"
-        "Я разберу данные, посчитаю конверсии и скажу если что-то подозрительно."
+        "Заявка уйдёт на проверку, результат придёт в течение нескольких минут."
     )
     await state.set_state(StatsInput.waiting_data)
 
@@ -380,35 +377,33 @@ async def cmd_analyze(message: Message, state: FSMContext):
 @router.message(StatsInput.waiting_data, F.photo)
 async def process_stats_photo(message: Message, state: FSMContext):
     await state.clear()
-    await message.answer("🔄 Анализирую скриншот...")
-
-    from app.services.ai import analyze_stats_ai
     from app.bot.main import get_bot
+    from app.config import get_settings
 
     bot = get_bot()
-    photo = message.photo[-1]  # highest resolution
+    photo = message.photo[-1]
     file = await bot.get_file(photo.file_id)
     data = await bot.download_file(file.file_path)
     image_bytes = data.read()
-
-    # Also use caption as additional context
     caption = message.caption or ""
+    user_info = f"@{message.from_user.username}" if message.from_user.username else str(message.from_user.id)
 
-    result = await analyze_stats_ai(text=caption, image_data=image_bytes, image_mime="image/jpeg", user_info=f"@{message.from_user.username or message.from_user.id}")
-    # Split long messages
-    if len(result) > 4000:
-        for i in range(0, len(result), 4000):
-            await message.answer(result[i:i+4000])
-    else:
-        await message.answer(result)
+    rid = _save_pending(
+        user_id=message.from_user.id,
+        chat_id=message.chat.id,
+        user_info=user_info,
+        text=caption,
+        image_data=image_bytes,
+        image_mime="image/jpeg",
+    )
+
+    await message.answer("✅ Заявка принята! Ожидай результат.")
+    await _send_analyze_approval(rid, user_info, f"📸 Скриншот" + (f" + текст: {caption[:100]}" if caption else ""))
 
 
 @router.message(StatsInput.waiting_data, F.document)
 async def process_stats_document(message: Message, state: FSMContext):
     await state.clear()
-    await message.answer("🔄 Анализирую файл...")
-
-    from app.services.ai import analyze_stats_ai
     from app.bot.main import get_bot
 
     bot = get_bot()
@@ -416,15 +411,21 @@ async def process_stats_document(message: Message, state: FSMContext):
     file = await bot.get_file(doc.file_id)
     data = await bot.download_file(file.file_path)
     file_bytes = data.read()
+    user_info = f"@{message.from_user.username}" if message.from_user.username else str(message.from_user.id)
 
     mime = doc.mime_type or ""
+    text_content = None
+    image_data = None
+    image_mime = "image/jpeg"
+
     if "image" in mime:
-        result = await analyze_stats_ai(image_data=file_bytes, image_mime=mime, user_info=f"@{message.from_user.username or message.from_user.id}")
+        image_data = file_bytes
+        image_mime = mime
+        desc = f"📸 Изображение ({doc.file_name})"
     elif "csv" in mime or doc.file_name.endswith(".csv"):
         text_content = file_bytes.decode("utf-8", errors="replace")
-        result = await analyze_stats_ai(text=text_content, user_info=f"@{message.from_user.username or message.from_user.id}")
+        desc = f"📎 CSV ({doc.file_name})"
     elif "spreadsheet" in mime or "excel" in mime or doc.file_name.endswith((".xlsx", ".xls")):
-        # Try to parse Excel
         try:
             import io
             import openpyxl
@@ -436,18 +437,26 @@ async def process_stats_document(message: Message, state: FSMContext):
                     vals = [str(v) if v is not None else "" for v in row]
                     lines.append("\t".join(vals))
             text_content = "\n".join(lines)
-            result = await analyze_stats_ai(text=text_content, user_info=f"@{message.from_user.username or message.from_user.id}")
+            desc = f"📎 Excel ({doc.file_name})"
         except Exception as e:
-            result = f"❌ Не удалось прочитать Excel: {str(e)[:100]}\n\nПопробуй скриншот или CSV."
+            await message.answer(f"❌ Не удалось прочитать Excel: {str(e)[:100]}\n\nПопробуй скриншот или CSV.")
+            return
     else:
         text_content = file_bytes.decode("utf-8", errors="replace")[:5000]
-        result = await analyze_stats_ai(text=text_content, user_info=f"@{message.from_user.username or message.from_user.id}")
+        desc = f"📎 Файл ({doc.file_name})"
 
-    if len(result) > 4000:
-        for i in range(0, len(result), 4000):
-            await message.answer(result[i:i+4000])
-    else:
-        await message.answer(result)
+    rid = _save_pending(
+        user_id=message.from_user.id,
+        chat_id=message.chat.id,
+        user_info=user_info,
+        text=text_content,
+        image_data=image_data,
+        image_mime=image_mime,
+    )
+
+    await message.answer("✅ Заявка принята! Ожидай результат.")
+    preview = text_content[:200] if text_content else ""
+    await _send_analyze_approval(rid, user_info, f"{desc}\n{preview}")
 
 
 @router.message(StatsInput.waiting_data)
@@ -456,13 +465,109 @@ async def process_stats_text(message: Message, state: FSMContext):
     if not message.text:
         await message.answer("❌ Отправь текст, скриншот или файл. Попробуй снова: /analyze")
         return
-    await message.answer("🔄 Анализирую данные...")
+
+    user_info = f"@{message.from_user.username}" if message.from_user.username else str(message.from_user.id)
+
+    rid = _save_pending(
+        user_id=message.from_user.id,
+        chat_id=message.chat.id,
+        user_info=user_info,
+        text=message.text,
+    )
+
+    await message.answer("✅ Заявка принята! Ожидай результат.")
+    await _send_analyze_approval(rid, user_info, f"📝 Текст:\n{message.text[:300]}")
+
+
+async def _send_analyze_approval(rid: int, user_info: str, description: str):
+    """Send analyze request to admin for approval."""
+    from app.bot.main import get_bot
+    from app.config import get_settings
+
+    settings = get_settings()
+    if not settings.admin_chat_id:
+        return
+
+    bot = get_bot()
+    text = (
+        f"📊 <b>Заявка на анализ #{rid}</b>\n\n"
+        f"👤 Пользователь: {user_info}\n"
+        f"📋 Данные: {description[:500]}"
+    )
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="✅ Одобрить", callback_data=f"analyze_approve_{rid}"),
+            InlineKeyboardButton(text="❌ Отклонить", callback_data=f"analyze_reject_{rid}"),
+        ]
+    ])
+    await bot.send_message(settings.admin_chat_id, text, reply_markup=kb)
+
+
+@router.callback_query(F.data.startswith("analyze_approve_"))
+async def cb_analyze_approve(callback: CallbackQuery):
+    from app.config import get_settings
+    settings = get_settings()
+    if callback.from_user.id != settings.admin_chat_id:
+        await callback.answer("⛔ Только для админа")
+        return
+
+    rid = int(callback.data.split("_")[2])
+    pending = _pending_analyze.pop(rid, None)
+    if not pending:
+        await callback.answer("❌ Заявка не найдена или уже обработана")
+        return
+
+    await callback.answer("✅ Одобрено, запускаю анализ...")
+    await callback.message.edit_reply_markup(reply_markup=None)
 
     from app.services.ai import analyze_stats_ai
-    result = await analyze_stats_ai(text=message.text, user_info=f"@{message.from_user.username or message.from_user.id}")
+    from app.bot.main import get_bot
 
-    if len(result) > 4000:
-        for i in range(0, len(result), 4000):
-            await message.answer(result[i:i+4000])
-    else:
-        await message.answer(result)
+    bot = get_bot()
+
+    image_data = base64.b64decode(pending["image_data"]) if pending.get("image_data") else None
+
+    result = await analyze_stats_ai(
+        text=pending.get("text"),
+        image_data=image_data,
+        image_mime=pending.get("image_mime", "image/jpeg"),
+        user_info=pending.get("user_info", ""),
+    )
+
+    # Send result to user
+    try:
+        if len(result) > 4000:
+            for i in range(0, len(result), 4000):
+                await bot.send_message(pending["chat_id"], result[i:i+4000])
+        else:
+            await bot.send_message(pending["chat_id"], result)
+    except Exception as e:
+        await callback.message.answer(f"❌ Не удалось отправить результат пользователю: {e}")
+
+
+@router.callback_query(F.data.startswith("analyze_reject_"))
+async def cb_analyze_reject(callback: CallbackQuery):
+    from app.config import get_settings
+    settings = get_settings()
+    if callback.from_user.id != settings.admin_chat_id:
+        await callback.answer("⛔ Только для админа")
+        return
+
+    rid = int(callback.data.split("_")[2])
+    pending = _pending_analyze.pop(rid, None)
+    if not pending:
+        await callback.answer("❌ Заявка не найдена или уже обработана")
+        return
+
+    await callback.answer("❌ Отклонено")
+    await callback.message.edit_reply_markup(reply_markup=None)
+
+    from app.bot.main import get_bot
+    bot = get_bot()
+    try:
+        await bot.send_message(
+            pending["chat_id"],
+            "❌ Заявка на анализ отклонена. Попробуй позже или свяжись с @EgorGCyprus."
+        )
+    except Exception:
+        pass
