@@ -31,6 +31,8 @@ async def api_pp_conditions(name: str = Query(None), db: AsyncSession = Depends(
 
 @router.get("/check-link")
 async def api_check_link(url: str):
+    from app.services.analytics import track
+    await track("web_check", details=url[:100], source="web")
     result = await check_link(url)
     return result
 
@@ -138,10 +140,9 @@ async def api_lead(req: LeadRequest):
         except Exception:
             text += f"\n📋 {req.details}"
     await notify_admin(text)
+    from app.services.analytics import track
+    await track("lead", username=req.telegram, details=req.product, source="web")
     return {"ok": True}
-
-
-@router.post("/admin/load-channels")
 async def load_channels(db: AsyncSession = Depends(get_db)):
     from app.services.digest import add_channel
     CHANNELS = [

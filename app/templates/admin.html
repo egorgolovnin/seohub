@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SEOhub — Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#050508;--bg2:#0c0c14;--bg3:#13131e;--border:#1e1e30;--t:#e4e4f0;--t2:#8585a0;--t3:#4a4a64;--acc:#00e6b8;--red:#ff3f5e;--ylw:#ffa630;--grn:#3fcc7f;--r:12px;--rs:8px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Space Grotesk',sans-serif;background:var(--bg);color:var(--t);min-height:100vh}
+.wrap{max-width:900px;margin:0 auto;padding:24px 16px}
+h1{font-size:22px;font-weight:700;margin-bottom:16px}
+h1 span{color:var(--acc)}
+
+/* Login */
+.login-box{max-width:320px;margin:80px auto;padding:24px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r)}
+.login-box h2{font-size:16px;margin-bottom:12px;text-align:center}
+.login-box input{width:100%;padding:10px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--rs);color:var(--t);font-family:inherit;margin-bottom:8px;outline:none}
+.login-box input:focus{border-color:var(--acc)}
+.login-box button{width:100%;padding:10px;background:var(--acc);color:#000;border:none;border-radius:var(--rs);font-family:inherit;font-weight:700;cursor:pointer}
+.login-box .err{color:var(--red);font-size:12px;margin-top:6px;display:none}
+
+/* Dashboard */
+.dash{display:none}
+.tabs{display:flex;gap:4px;margin-bottom:16px}
+.tab{padding:8px 16px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);color:var(--t2);cursor:pointer;font-size:13px;font-weight:500}
+.tab.on{background:var(--acc);color:#000;border-color:var(--acc)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-bottom:16px}
+.card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);padding:12px}
+.card-label{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
+.card-val{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700}
+.card-sub{font-size:11px;color:var(--t2);margin-top:2px}
+.grn{color:var(--grn)}.ylw{color:var(--ylw)}.red{color:var(--red)}.acc{color:var(--acc)}
+
+table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+th{text-align:left;padding:8px;color:var(--t3);font-size:10px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border)}
+td{padding:8px;border-bottom:1px solid var(--border);font-family:'JetBrains Mono',monospace;font-size:11px}
+
+.section{margin-bottom:20px}
+.section-title{font-size:14px;font-weight:600;margin-bottom:8px}
+
+.refresh-btn{padding:6px 16px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);color:var(--acc);cursor:pointer;font-size:12px;font-family:inherit}
+.refresh-btn:hover{border-color:var(--acc)}
+</style>
+</head>
+<body>
+
+<!-- Login -->
+<div class="login-box" id="loginBox">
+  <h2>🔒 SEOhub Admin</h2>
+  <input type="text" id="loginUser" placeholder="Логин" autocomplete="off">
+  <input type="password" id="loginPass" placeholder="Пароль">
+  <button onclick="doLogin()">Войти</button>
+  <div class="err" id="loginErr">Неверный логин или пароль</div>
+</div>
+
+<!-- Dashboard -->
+<div class="dash" id="dashboard">
+  <div class="wrap">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h1>📊 SEOhub <span>Admin</span></h1>
+      <button class="refresh-btn" onclick="loadStats()">🔄 Обновить</button>
+    </div>
+
+    <div class="tabs">
+      <div class="tab on" onclick="setPeriod(1,this)">Сегодня</div>
+      <div class="tab" onclick="setPeriod(7,this)">Неделя</div>
+      <div class="tab" onclick="setPeriod(30,this)">Месяц</div>
+      <div class="tab" onclick="setPeriod(365,this)">Всё время</div>
+    </div>
+
+    <div class="cards" id="cards"></div>
+
+    <div class="section">
+      <div class="section-title">📈 По типам событий</div>
+      <table><thead><tr><th>Событие</th><th>Количество</th></tr></thead><tbody id="byType"></tbody></table>
+    </div>
+
+    <div class="section">
+      <div class="section-title">🏆 Топ пользователей</div>
+      <table><thead><tr><th>Пользователь</th><th>Действий</th></tr></thead><tbody id="topUsers"></tbody></table>
+    </div>
+
+    <div class="section">
+      <div class="section-title">📋 Последние события</div>
+      <table><thead><tr><th>Время</th><th>Тип</th><th>Пользователь</th><th>Детали</th></tr></thead><tbody id="recentEvents"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<script>
+let token = '';
+let currentDays = 1;
+
+async function doLogin() {
+  const user = document.getElementById('loginUser').value;
+  const pass = document.getElementById('loginPass').value;
+  try {
+    const r = await fetch('/api/admin/login', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({login: user, password: pass})
+    });
+    const data = await r.json();
+    if (data.ok) {
+      token = data.token;
+      document.getElementById('loginBox').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'block';
+      loadStats();
+    } else {
+      document.getElementById('loginErr').style.display = 'block';
+    }
+  } catch(e) {
+    document.getElementById('loginErr').style.display = 'block';
+  }
+}
+
+function setPeriod(days, el) {
+  currentDays = days;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
+  el.classList.add('on');
+  loadStats();
+}
+
+async function loadStats() {
+  try {
+    const r = await fetch(`/api/admin/stats?days=${currentDays}&token=${token}`);
+    const data = await r.json();
+    if (!data.ok) return;
+    const s = data.stats;
+
+    // Cards
+    document.getElementById('cards').innerHTML = `
+      <div class="card"><div class="card-label">Пользователи</div><div class="card-val acc">${s.unique_users}</div><div class="card-sub">новых: ${s.new_users}</div></div>
+      <div class="card"><div class="card-label">Событий</div><div class="card-val">${s.total_events}</div></div>
+      <div class="card"><div class="card-label">API расходы</div><div class="card-val ${s.total_cost > 1 ? 'red' : 'grn'}">$${s.total_cost.toFixed(4)}</div></div>
+      <div class="card"><div class="card-label">Бот</div><div class="card-val">${s.by_source.bot || 0}</div></div>
+      <div class="card"><div class="card-label">Сайт</div><div class="card-val">${s.by_source.web || 0}</div></div>
+    `;
+
+    // By type
+    const emoji = {start:'🚀',check:'🔗',addlink:'➕',analyze:'📊',lead:'📩',rates:'💰',web_check:'🌐',web_lead:'📩',checklinks:'🔄',mylinks:'📋'};
+    document.getElementById('byType').innerHTML = Object.entries(s.by_type)
+      .map(([k,v]) => `<tr><td>${emoji[k]||'•'} ${k}</td><td>${v}</td></tr>`).join('');
+
+    // Top users
+    document.getElementById('topUsers').innerHTML = (s.top_users || [])
+      .map(([u,c],i) => `<tr><td>${i+1}. ${u}</td><td>${c}</td></tr>`).join('');
+
+    // Recent events
+    const re = await fetch(`/api/admin/events?days=${currentDays}&token=${token}`);
+    const evData = await re.json();
+    if (evData.ok) {
+      document.getElementById('recentEvents').innerHTML = (evData.events || [])
+        .map(e => `<tr><td>${e.time}</td><td>${e.type}</td><td>${e.username||'—'}</td><td>${(e.details||'').substring(0,50)}</td></tr>`).join('');
+    }
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+</script>
+</body>
+</html>

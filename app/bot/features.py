@@ -42,8 +42,9 @@ async def cmd_check(message: Message):
     await message.answer("🔄 Проверяю цепочку редиректов...")
 
     from app.bot.main import notify_activity
+    from app.services.analytics import track
     user = f"@{message.from_user.username}" if message.from_user.username else str(message.from_user.id)
-    await notify_activity(user, "🔗 /check", f"URL: <code>{url[:70]}</code>")
+    await notify_activity(user, "🔗 /check", f"URL: <code>{url[:70]}</code>", user_id=message.from_user.id)
 
     result = await check_link(url)
     text = format_trace_result(result)
@@ -185,7 +186,7 @@ async def cmd_addlink(message: Message):
     from app.bot.main import notify_activity
     user = f"@{message.from_user.username}" if message.from_user.username else str(message.from_user.id)
     geo_str = f" [{geo}]" if geo else ""
-    await notify_activity(user, f"➕ /addlink{geo_str}", f"URL: <code>{url[:70]}</code>")
+    await notify_activity(user, f"➕ /addlink{geo_str}", f"URL: <code>{url[:70]}</code>", user_id=message.from_user.id)
 
 
 @router.message(Command("checklinks"))
@@ -408,6 +409,8 @@ async def process_stats_photo(message: Message, state: FSMContext):
 
     await message.answer("✅ Заявка принята! Ожидай результат.")
     await _send_analyze_approval(rid, user_info, f"📸 Скриншот" + (f" + текст: {caption[:100]}" if caption else ""))
+    from app.services.analytics import track
+    await track("analyze", user_id=message.from_user.id, username=user_info, details="photo")
 
 
 @router.message(StatsInput.waiting_data, F.document)

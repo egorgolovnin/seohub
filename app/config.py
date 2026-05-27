@@ -13,9 +13,11 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     app_env: str = "production"
     app_port: int = 8000
-    # Residential proxy for geo-check (e.g. "http://user:pass@gate.smartproxy.com:7777")
     proxy_url: str = ""
-    admin_group_id: int = 0  # Group for approve/reject requests
+    admin_group_id: int = 0
+    # Admin panel credentials
+    admin_login: str = "admin"
+    admin_password: str = "changeme"
 
     @property
     def database_url_sync(self) -> str:

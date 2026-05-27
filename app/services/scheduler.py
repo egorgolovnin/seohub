@@ -149,8 +149,21 @@ def start_scheduler():
     scheduler.add_job(job_send_daily_digest, CronTrigger(hour=12, minute=0))
     # Weekly digest on Fridays at 18:00
     scheduler.add_job(job_weekly_digest, CronTrigger(day_of_week="fri", hour=18, minute=0))
-    # Link monitoring at 9:00 and 21:00 UTC (adjust for your timezone)
+    # Link monitoring at 9:00 and 21:00 UTC
     scheduler.add_job(job_check_links, CronTrigger(hour="6,18", minute=0))
+    # Daily analytics report at 21:00 UTC
+    scheduler.add_job(job_daily_analytics, CronTrigger(hour=18, minute=0))
 
     scheduler.start()
     logger.info("Scheduler started")
+
+
+async def job_daily_analytics():
+    """Send daily analytics summary to admin group."""
+    logger.info("Sending daily analytics")
+    from app.services.analytics import get_stats, format_stats
+    from app.bot.main import notify_admin
+    day_stats = await get_stats(1)
+    week_stats = await get_stats(7)
+    text = format_stats(day_stats) + "\n\n" + format_stats(week_stats)
+    await notify_admin(text)

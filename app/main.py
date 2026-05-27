@@ -37,6 +37,7 @@ async def lifespan(app: FastAPI):
         BotCommand(command="deletelink", description="Удалить ссылку"),
         BotCommand(command="report", description="Сводка по всем ссылкам"),
         BotCommand(command="analyze", description="Антишейв — скриншот или текст из ПП"),
+        BotCommand(command="stats", description="📊 Аналитика (админ)"),
         BotCommand(command="help", description="Помощь"),
     ])
 
@@ -98,3 +99,68 @@ async def rates_page(request: Request):
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_page():
+    with open("app/templates/admin.html", "r") as f:
+        return HTMLResponse(f.read())
+
+
+@app.post("/api/admin/login")
+async def admin_login(request: Request):
+    import hashlib
+    data = await request.json()
+    settings = get_settings()
+    if data.get("login") == settings.admin_login and data.get("password") == settings.admin_password:
+        token = hashlib.sha256(f"{settings.admin_login}:{settings.admin_password}".encode()).hexdigest()[:32]
+        return {"ok": True, "token": token}
+    return {"ok": False}
+
+
+def _check_admin_token(token: str) -> bool:
+    import hashlib
+    settings = get_settings()
+    expected = hashlib.sha256(f"{settings.admin_login}:{settings.admin_password}".encode()).hexdigest()[:32]
+    return token == expected
+
+
+@app.get("/api/admin/stats")
+async def admin_stats(days: int = 1, token: str = ""):
+    if not _check_admin_token(token):
+        return {"ok": False, "error": "unauthorized"}
+    from app.services.analytics import get_stats
+    stats = await get_stats(days)
+    return {"ok": True, "stats": stats}
+
+
+@app.get("/api/admin/events")
+async def admin_events(days: int = 1, token: str = "", limit: int = 50):
+    if not _check_admin_token(token):
+        return {"ok": False, "error": "unauthorized"}
+    from datetime import datetime, timedelta
+    from sqlalchemy import select
+    from app.models.models import AnalyticsEvent
+    since = datetime.utcnow() - timedelta(days=days)
+    async with async_session() as db:
+        result = await db.execute(
+            select(AnalyticsEvent)
+            .where(AnalyticsEvent.created_at >= since)
+            .order_by(AnalyticsEvent.created_at.desc())
+            .limit(limit)
+        )
+        events = result.scalars().all()
+    return {
+        "ok": True,
+        "events": [
+            {
+                "time": e.created_at.strftime("%d.%m %H:%M") if e.created_at else "",
+                "type": e.event_type,
+                "username": e.username,
+                "details": e.details,
+                "cost": e.cost,
+                "source": e.source,
+            }
+            for e in events
+        ]
+    }

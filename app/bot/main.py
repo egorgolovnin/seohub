@@ -42,12 +42,16 @@ async def notify_admin(text: str, reply_markup=None):
         logger.error(f"Admin notify error: {e}")
 
 
-async def notify_activity(user: str, action: str, details: str = ""):
-    """Log user activity to admin group."""
+async def notify_activity(user: str, action: str, details: str = "", user_id: int = None):
+    """Log user activity to admin group and DB."""
     text = f"👤 <b>{user}</b> → {action}"
     if details:
         text += f"\n{details}"
     await notify_admin(text)
+    # Track in analytics DB
+    from app.services.analytics import track
+    event_type = action.split(" ")[1].replace("/", "") if "/" in action else action.split(" ")[0]
+    await track(event_type=event_type, user_id=user_id, username=user, details=details)
 
 
 # === RATES COMMANDS ===
@@ -99,7 +103,22 @@ async def cmd_start(message: Message):
         ],
     ])
     await message.answer(text, reply_markup=kb)
-    await notify_activity(user, "🚀 /start")
+    await notify_activity(user, "🚀 /start", user_id=message.from_user.id)
+
+
+@router.message(Command("stats"))
+async def cmd_stats(message: Message):
+    settings = get_settings()
+    if message.from_user.id != settings.admin_chat_id:
+        await message.answer("⛔ Только для админа")
+        return
+    from app.services.analytics import get_stats, format_stats
+    # Day stats
+    day = await get_stats(1)
+    week = await get_stats(7)
+    total = await get_stats(365)
+    text = format_stats(day) + "\n\n" + format_stats(week) + "\n\n" + format_stats(total)
+    await message.answer(text)
 
 
 @router.message(Command("rates"))

@@ -31,7 +31,7 @@ class RateRaw(Base):
     __tablename__ = "rates_raw"
     id = Column(Integer, primary_key=True)
     geo = Column(String(20), nullable=False, index=True)
-    rate_type = Column(String(5), nullable=False)  # CPA or RS
+    rate_type = Column(String(5), nullable=False)
     amount = Column(Float)
     program = Column(String(200))
     source = Column(String(100))
@@ -56,7 +56,7 @@ class DigestChannel(Base):
     channel_id = Column(String(50), nullable=False, unique=True)
     name = Column(String(200), nullable=False)
     username = Column(String(100))
-    category = Column(String(50))  # seo, news, tools, general
+    category = Column(String(50))
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
 
@@ -69,10 +69,10 @@ class DigestPost(Base):
     original_text = Column(Text, nullable=False)
     original_date = Column(DateTime)
     original_message_id = Column(Integer)
-    summary = Column(Text)  # AI-generated summary
-    category = Column(String(50))  # case, guide, tool, news, insight
-    importance_score = Column(Float)  # 0-10, AI-rated
-    status = Column(String(20), default="pending")  # pending, approved, rejected, published
+    summary = Column(Text)
+    category = Column(String(50))
+    importance_score = Column(Float)
+    status = Column(String(20), default="pending")
     published_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 
@@ -82,8 +82,20 @@ class WeeklyDigest(Base):
     id = Column(Integer, primary_key=True)
     week_start = Column(DateTime, nullable=False)
     week_end = Column(DateTime, nullable=False)
-    summary = Column(Text)  # AI-generated weekly summary
-    post_ids = Column(JSON)  # list of DigestPost ids included
+    summary = Column(Text)
+    post_ids = Column(JSON)
     status = Column(String(20), default="pending")
     published_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
+
+
+class AnalyticsEvent(Base):
+    __tablename__ = "analytics_events"
+    id = Column(Integer, primary_key=True)
+    event_type = Column(String(50), nullable=False, index=True)  # start, check, addlink, analyze, lead, etc.
+    user_id = Column(BigInteger, nullable=True)
+    username = Column(String(100), nullable=True)
+    details = Column(Text, nullable=True)
+    cost = Column(Float, default=0)  # API cost in USD
+    source = Column(String(20), default="bot")  # bot or web
+    created_at = Column(DateTime, server_default=func.now(), index=True)
