@@ -394,7 +394,7 @@ async def process_stats_photo(message: Message, state: FSMContext):
     # Also use caption as additional context
     caption = message.caption or ""
 
-    result = await analyze_stats_ai(text=caption, image_data=image_bytes, image_mime="image/jpeg")
+    result = await analyze_stats_ai(text=caption, image_data=image_bytes, image_mime="image/jpeg", user_info=f"@{message.from_user.username or message.from_user.id}")
     # Split long messages
     if len(result) > 4000:
         for i in range(0, len(result), 4000):
@@ -419,10 +419,10 @@ async def process_stats_document(message: Message, state: FSMContext):
 
     mime = doc.mime_type or ""
     if "image" in mime:
-        result = await analyze_stats_ai(image_data=file_bytes, image_mime=mime)
+        result = await analyze_stats_ai(image_data=file_bytes, image_mime=mime, user_info=f"@{message.from_user.username or message.from_user.id}")
     elif "csv" in mime or doc.file_name.endswith(".csv"):
         text_content = file_bytes.decode("utf-8", errors="replace")
-        result = await analyze_stats_ai(text=text_content)
+        result = await analyze_stats_ai(text=text_content, user_info=f"@{message.from_user.username or message.from_user.id}")
     elif "spreadsheet" in mime or "excel" in mime or doc.file_name.endswith((".xlsx", ".xls")):
         # Try to parse Excel
         try:
@@ -436,12 +436,12 @@ async def process_stats_document(message: Message, state: FSMContext):
                     vals = [str(v) if v is not None else "" for v in row]
                     lines.append("\t".join(vals))
             text_content = "\n".join(lines)
-            result = await analyze_stats_ai(text=text_content)
+            result = await analyze_stats_ai(text=text_content, user_info=f"@{message.from_user.username or message.from_user.id}")
         except Exception as e:
             result = f"❌ Не удалось прочитать Excel: {str(e)[:100]}\n\nПопробуй скриншот или CSV."
     else:
         text_content = file_bytes.decode("utf-8", errors="replace")[:5000]
-        result = await analyze_stats_ai(text=text_content)
+        result = await analyze_stats_ai(text=text_content, user_info=f"@{message.from_user.username or message.from_user.id}")
 
     if len(result) > 4000:
         for i in range(0, len(result), 4000):
@@ -459,7 +459,7 @@ async def process_stats_text(message: Message, state: FSMContext):
     await message.answer("🔄 Анализирую данные...")
 
     from app.services.ai import analyze_stats_ai
-    result = await analyze_stats_ai(text=message.text)
+    result = await analyze_stats_ai(text=message.text, user_info=f"@{message.from_user.username or message.from_user.id}")
 
     if len(result) > 4000:
         for i in range(0, len(result), 4000):

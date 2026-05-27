@@ -160,3 +160,58 @@ async def api_lead(req: LeadRequest):
         except Exception:
             pass
     return {"ok": True}
+
+
+@router.post("/admin/load-channels")
+async def load_channels(db: AsyncSession = Depends(get_db)):
+    from app.services.digest import add_channel
+    CHANNELS = [
+        ("1","По Уши в Гембле","po_ushi_v_gambling","seo"),
+        ("2","MAXGAMBLER","maxxxigaming","seo"),
+        ("3","Igor Bakalov","bakalov_info","seo"),
+        ("4","SEO Dream Team","seodreamteamofficial","seo"),
+        ("5","SEOшница","bakushevaseo","seo"),
+        ("6","Тихий час","tkhychs","seo"),
+        ("7","Phoenix Project","seoetc","seo"),
+        ("8","Netkela","netkela","seo"),
+        ("9","SЕalytics","sealytics","seo"),
+        ("10","Аффилиатка и АИшка","aiseosales","seo"),
+        ("11","Партнеркин Гемблинг","partnerkin_gambling","news"),
+        ("12","Highroller","highroller_affiliate","news"),
+        ("13","iGaming in High-Risk","igaming_highrisk","news"),
+        ("14","R2B.News","r2b_news","news"),
+        ("15","Oleg Shestakov","shestakov_oleg","news"),
+        ("16","Подслушано в гембле","podslushano_gamble","news"),
+        ("17","iGaming PUSH","igaming_push","news"),
+        ("18","iGaming Kitchen","igaming_kitchen","news"),
+        ("19","Gambla4","gambla4","news"),
+        ("20","iGamingNews","igamingnews_tg","news"),
+        ("21","iGaming Редакция","igaming_redakciya","news"),
+        ("22","R2B.Work","r2b_work","news"),
+        ("23","Три топора","tri_topora","news"),
+        ("24","Вредный бук","vredniy_buk","news"),
+        ("25","ГэмблХаус","gamblehouse","news"),
+        ("26","PMP Media","pmp_media","news"),
+        ("27","whitehat.media","whitehattea","seo"),
+        ("28","Бабло побеждает зло!","MoneyBeatsEvil","seo"),
+        ("29","iGaming CMO","igaming_cmo","news"),
+        ("30","iGaming Insides","igaming_insides","news"),
+        ("31","GGM iGaming People","ggm_igaming","news"),
+        ("32","C-lvl Лидеры iGaming","clvl_igaming","news"),
+        ("33","Новости букмекеров","novosti_bk","news"),
+        ("34","iGaming CEO","igaming_ceo","news"),
+        ("35","Спортивный маркетолог","sport_marketolog","news"),
+        ("36","Affiliate Diaries","affiliate_diaries","seo"),
+        ("37","AffMoment","affmoment","news"),
+        ("38","seomoneymaker","seomoneymaker_channel","seo"),
+        ("39","PM Talents","pm_talents","news"),
+        ("40","MOST","most_igaming","news"),
+    ]
+    loaded = 0
+    for cid, name, username, cat in CHANNELS:
+        try:
+            await add_channel(db, cid, name, username, cat)
+            loaded += 1
+        except Exception:
+            await db.rollback()
+    return {"ok": True, "loaded": loaded, "total": len(CHANNELS)}
