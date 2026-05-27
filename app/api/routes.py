@@ -195,3 +195,59 @@ async def load_channels(db: AsyncSession = Depends(get_db)):
         except Exception:
             await db.rollback()
     return {"ok": True, "loaded": loaded, "total": len(CHANNELS)}
+
+
+@router.post("/admin/test-telethon")
+async def test_telethon():
+    from app.config import get_settings
+    settings = get_settings()
+    diag = {
+        "telethon_api_id": settings.telethon_api_id,
+        "telethon_api_id_type": type(settings.telethon_api_id).__name__,
+        "telethon_api_hash_set": bool(settings.telethon_api_hash),
+        "telethon_session_set": bool(settings.telethon_session_string),
+        "session_length": len(settings.telethon_session_string) if settings.telethon_session_string else 0,
+    }
+    if not settings.telethon_api_id or not settings.telethon_session_string:
+        diag["error"] = "telethon_api_id or session_string not set"
+        return diag
+
+    try:
+        from telethon import TelegramClient
+        from telethon.sessions import StringSession
+        client = TelegramClient(
+            StringSession(settings.telethon_session_string),
+            settings.telethon_api_id,
+            settings.telethon_api_hash,
+        )
+        await client.connect()
+        authorized = await client.is_user_authorized()
+        me = None
+        if authorized:
+            me_obj = await client.get_me()
+            me = f"@{me_obj.username}" if me_obj.username else str(me_obj.id)
+        await client.disconnect()
+        diag["authorized"] = authorized
+        diag["me"] = me
+    except Exception as e:
+        diag["error"] = str(e)[:200]
+
+    return diag
+
+
+@router.post("/admin/trigger-digest")
+async def trigger_digest():
+    """Manually trigger channel fetch + scoring."""
+    from app.services.scheduler import job_fetch_channels, job_score_posts
+    result = {}
+    try:
+        await job_fetch_channels()
+        result["fetch"] = "ok"
+    except Exception as e:
+        result["fetch_error"] = str(e)[:200]
+    try:
+        await job_score_posts()
+        result["score"] = "ok"
+    except Exception as e:
+        result["score_error"] = str(e)[:200]
+    return result
