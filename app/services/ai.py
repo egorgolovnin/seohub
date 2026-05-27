@@ -157,12 +157,12 @@ async def _notify_admin_api_call(action: str, user_info: str):
     """Send notification to admin about API usage."""
     try:
         settings = get_settings()
-        if not settings.admin_chat_id:
+        if not settings.admin_group_id or settings.admin_chat_id:
             return
         from app.bot.main import get_bot
         bot = get_bot()
         text = f"🔄 <b>API запрос</b>\n📊 Действие: {action}\n👤 {user_info}"
-        await bot.send_message(settings.admin_chat_id, text)
+        await bot.send_message(settings.admin_group_id or settings.admin_chat_id, text)
     except Exception as e:
         logger.error(f"Admin notify error: {e}")
 
@@ -171,7 +171,7 @@ async def _notify_admin_api_result(user_info: str, input_tokens: int, output_tok
     """Send cost notification to admin after API call."""
     try:
         settings = get_settings()
-        if not settings.admin_chat_id:
+        if not settings.admin_group_id or settings.admin_chat_id:
             return
         from app.bot.main import get_bot
         bot = get_bot()
@@ -182,6 +182,6 @@ async def _notify_admin_api_result(user_info: str, input_tokens: int, output_tok
             f"📤 Output: {output_tokens} токенов\n"
             f"💰 Стоимость: ~${cost:.4f}"
         )
-        await bot.send_message(settings.admin_chat_id, text)
+        await bot.send_message(settings.admin_group_id or settings.admin_chat_id, text)
     except Exception as e:
         logger.error(f"Admin notify error: {e}")

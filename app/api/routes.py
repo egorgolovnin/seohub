@@ -66,7 +66,7 @@ async def api_ioffers_request(req: IoffersRequest):
     from app.bot.main import get_bot
     from app.config import get_settings
     settings = get_settings()
-    if settings.admin_chat_id:
+    if settings.admin_group_id or settings.admin_chat_id:
         bot = get_bot()
         text = (
             f"📊 <b>Заявка на iOffers</b>\n\n"
@@ -75,7 +75,7 @@ async def api_ioffers_request(req: IoffersRequest):
             f"💬 Комментарий: {req.comment or 'нет'}"
         )
         try:
-            await bot.send_message(settings.admin_chat_id, text)
+            await bot.send_message(settings.admin_group_id or settings.admin_chat_id, text)
         except Exception:
             pass
     return {"ok": True}
@@ -102,7 +102,7 @@ async def api_bbl_request(req: BBLRequest):
     from app.bot.main import get_bot
     from app.config import get_settings
     settings = get_settings()
-    if settings.admin_chat_id:
+    if settings.admin_group_id or settings.admin_chat_id:
         bot = get_bot()
         text = (
             f"🔗 <b>Заявка на BetBuddy Link</b>\n\n"
@@ -110,7 +110,7 @@ async def api_bbl_request(req: BBLRequest):
             f"📱 Telegram: {req.telegram}"
         )
         try:
-            await bot.send_message(settings.admin_chat_id, text)
+            await bot.send_message(settings.admin_group_id or settings.admin_chat_id, text)
         except Exception:
             pass
     return {"ok": True}
@@ -128,7 +128,7 @@ async def api_lead(req: LeadRequest):
     from app.bot.main import get_bot
     from app.config import get_settings
     settings = get_settings()
-    if settings.admin_chat_id:
+    if settings.admin_group_id or settings.admin_chat_id:
         bot = get_bot()
         text = (
             f"📩 <b>Новая заявка</b>\n\n"
@@ -156,7 +156,7 @@ async def api_lead(req: LeadRequest):
             except Exception:
                 text += f"\n📋 {req.details}"
         try:
-            await bot.send_message(settings.admin_chat_id, text)
+            await bot.send_message(settings.admin_group_id or settings.admin_chat_id, text)
         except Exception:
             pass
     return {"ok": True}

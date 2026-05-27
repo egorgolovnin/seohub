@@ -480,12 +480,13 @@ async def process_stats_text(message: Message, state: FSMContext):
 
 
 async def _send_analyze_approval(rid: int, user_info: str, description: str):
-    """Send analyze request to admin for approval."""
+    """Send analyze request to admin group for approval."""
     from app.bot.main import get_bot
     from app.config import get_settings
 
     settings = get_settings()
-    if not settings.admin_chat_id:
+    target_chat = settings.admin_group_id or settings.admin_chat_id
+    if not target_chat:
         return
 
     bot = get_bot()
@@ -500,7 +501,7 @@ async def _send_analyze_approval(rid: int, user_info: str, description: str):
             InlineKeyboardButton(text="❌ Отклонить", callback_data=f"analyze_reject_{rid}"),
         ]
     ])
-    await bot.send_message(settings.admin_chat_id, text, reply_markup=kb)
+    await bot.send_message(target_chat, text, reply_markup=kb)
 
 
 @router.callback_query(F.data.startswith("analyze_approve_"))
