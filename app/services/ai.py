@@ -57,7 +57,7 @@ async def score_post(text: str) -> dict | None:
     try:
         client = AsyncAnthropic(api_key=settings.anthropic_api_key)
         response = await client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-haiku-4-5-20251001",
             max_tokens=300,
             system=SCORE_SYSTEM,
             messages=[{"role": "user", "content": f"Пост из канала:\n\n{text[:2000]}"}],
@@ -77,7 +77,7 @@ async def generate_weekly_summary(posts_text: str) -> str | None:
     try:
         client = AsyncAnthropic(api_key=settings.anthropic_api_key)
         response = await client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-haiku-4-5-20251001",
             max_tokens=500,
             system=WEEKLY_SYSTEM,
             messages=[{"role": "user", "content": f"Посты за неделю:\n\n{posts_text[:6000]}"}],
@@ -116,7 +116,7 @@ async def analyze_stats_ai(text: str = None, image_data: bytes = None, image_mim
             content.append({"type": "text", "text": "Проанализируй этот скриншот дашборда партнёрской программы."})
 
         response = await client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-haiku-4-5-20251001",
             max_tokens=1500,
             system=ANALYZE_SYSTEM,
             messages=[{"role": "user", "content": content}],
