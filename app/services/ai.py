@@ -71,6 +71,11 @@ async def score_post(text: str) -> dict | None:
         await _notify_admin_api_result("digest scoring", input_tokens, output_tokens, cost)
 
         raw = raw.removeprefix("```json").removesuffix("```").strip()
+        # Extract JSON object even if there's extra text after it
+        import re
+        json_match = re.search(r'\{[^{}]*\}', raw)
+        if json_match:
+            return json.loads(json_match.group())
         return json.loads(raw)
     except Exception as e:
         logger.error(f"Score post error: {e}")

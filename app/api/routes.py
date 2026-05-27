@@ -251,3 +251,37 @@ async def trigger_digest():
     except Exception as e:
         result["score_error"] = str(e)[:200]
     return result
+
+
+@router.post("/admin/trigger-approval")
+async def trigger_approval():
+    """Send scored posts to admin for approval."""
+    from app.database import async_session
+    from app.services.digest import get_top_posts_for_today
+    from app.bot.main import send_digest_approval
+    from sqlalchemy import select
+    from app.models.models import DigestPost
+
+    async with async_session() as db:
+        # Get all scored posts (not just today, lower threshold for testing)
+        result = await db.execute(
+            select(DigestPost)
+            .where(DigestPost.status == "scored")
+            .where(DigestPost.importance_score >= 3.0)
+            .order_by(DigestPost.importance_score.desc())
+            .limit(10)
+        )
+        posts = list(result.scalars().all())
+
+    if not posts:
+        return {"ok": False, "message": "No scored posts found"}
+
+    sent = 0
+    for post in posts:
+        try:
+            await send_digest_approval(post)
+            sent += 1
+        except Exception as e:
+            pass
+
+    return {"ok": True, "sent": sent, "total_scored": len(posts)}
