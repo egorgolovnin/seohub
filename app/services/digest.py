@@ -6,7 +6,10 @@ from app.models.models import DigestPost, DigestChannel, WeeklyDigest
 
 logger = logging.getLogger(__name__)
 
-FOOTER = "\n\n📢 <a href='https://t.me/seonewsbyhub'>Подписывайся на канал</a> | 🤖 <a href='https://t.me/seohubmainbot'>Бот для SEO</a>"
+FOOTER = (
+    "\n\n<a href='https://t.me/seonewsbyhub'>Подписывайся на наш канал</a>\n"
+    "<a href='https://t.me/seohubmainbot'>Бот для iGaming SEO — ставки, проверка ссылок, антишейв</a>"
+)
 
 
 async def save_raw_posts(db: AsyncSession, posts: list[dict]) -> int:
@@ -152,11 +155,9 @@ def format_digest_post(post: DigestPost) -> str:
     """Format post for publishing to channel."""
     lines = []
 
-    # Summary as title with emoji
+    # Summary as title (no extra emoji - only what's in original text)
     if post.summary:
-        lines.append(f"📌 <b>{post.summary}</b>")
-    else:
-        lines.append("📌 <b>Новый пост</b>")
+        lines.append(f"<b>{post.summary}</b>")
 
     # Full original text
     lines.append("")
@@ -165,41 +166,48 @@ def format_digest_post(post: DigestPost) -> str:
     # Source link
     source = _source_link(post)
     if source:
-        lines.append(f"\n🔗 <a href='{source}'>Источник: {post.channel_name or post.channel_username}</a>")
+        lines.append(f"\n<a href='{source}'>Источник: {post.channel_name or post.channel_username}</a>")
     elif post.channel_name:
-        lines.append(f"\n🔗 Источник: {post.channel_name}")
+        lines.append(f"\nИсточник: {post.channel_name}")
 
     # Footer
     lines.append(FOOTER)
 
-    return "\n".join(lines)
+    # Clean up markdown artifacts
+    result = "\n".join(lines)
+    result = result.replace("**", "")
+    return result
 
 
 def format_digest_approval(post: DigestPost) -> str:
     """Format post for admin approval (in admin group)."""
-    lines = [f"📝 <b>Пост на апрув</b>\n"]
+    lines = ["<b>Пост на апрув</b>\n"]
 
     # Source channel with link
     source = _source_link(post)
     if source:
-        lines.append(f"📢 <a href='{source}'>{post.channel_name or post.channel_username}</a>")
+        lines.append(f"<a href='{source}'>{post.channel_name or post.channel_username}</a>")
     else:
-        lines.append(f"📢 {post.channel_name or post.channel_username}")
+        lines.append(f"{post.channel_name or post.channel_username}")
 
     # Summary
     if post.summary:
-        lines.append(f"\n💡 <b>{post.summary}</b>")
+        lines.append(f"\n<b>{post.summary}</b>")
 
     # Full text
     lines.append(f"\n{post.original_text}")
 
-    return "\n".join(lines)
+    result = "\n".join(lines)
+    result = result.replace("**", "")
+    return result
 
 
 def format_weekly_digest(summary: str, posts: list[DigestPost]) -> str:
     """Format weekly digest for channel — only from published posts."""
-    lines = ["📋 <b>Итоги недели в iGaming SEO</b>\n"]
+    lines = ["<b>Итоги недели в iGaming SEO</b>\n"]
     lines.append(summary)
-    lines.append(f"\n📊 Опубликовано {len(posts)} постов за неделю")
+    lines.append(f"\nОпубликовано {len(posts)} постов за неделю")
     lines.append(FOOTER)
-    return "\n".join(lines)
+    result = "\n".join(lines)
+    result = result.replace("**", "")
+    return result
