@@ -6,6 +6,8 @@ from app.models.models import DigestPost, DigestChannel, WeeklyDigest
 
 logger = logging.getLogger(__name__)
 
+FOOTER = "\n\n📢 <a href='https://t.me/seonewsbyhub'>Подписывайся на канал</a> | 🤖 <a href='https://t.me/seohubmainbot'>Бот для SEO</a>"
+
 
 async def save_raw_posts(db: AsyncSession, posts: list[dict]) -> int:
     saved = 0
@@ -45,13 +47,11 @@ async def get_pending_posts(db: AsyncSession, limit: int = 50) -> list[DigestPos
     return list(result.scalars().all())
 
 
-async def get_top_posts_for_today(db: AsyncSession, limit: int = 3) -> list[DigestPost]:
-    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+async def get_top_posts_for_today(db: AsyncSession, limit: int = 10) -> list[DigestPost]:
     result = await db.execute(
         select(DigestPost)
         .where(DigestPost.status == "scored")
-        .where(DigestPost.importance_score >= 6.0)
-        .where(DigestPost.created_at >= today_start)
+        .where(DigestPost.importance_score >= 3.0)
         .order_by(DigestPost.importance_score.desc())
         .limit(limit)
     )
@@ -100,6 +100,7 @@ async def mark_published(db: AsyncSession, post_id: int) -> bool:
 
 
 async def get_week_posts(db: AsyncSession) -> list[DigestPost]:
+    """Get only PUBLISHED posts for weekly digest."""
     week_ago = datetime.utcnow() - timedelta(days=7)
     result = await db.execute(
         select(DigestPost)
@@ -140,22 +141,65 @@ async def add_channel(db: AsyncSession, channel_id: str, name: str, username: st
     return ch
 
 
+def _source_link(post: DigestPost) -> str:
+    """Build t.me link to original post."""
+    if post.channel_username and post.original_message_id:
+        return f"https://t.me/{post.channel_username}/{post.original_message_id}"
+    return ""
+
+
 def format_digest_post(post: DigestPost) -> str:
-    category_emoji = {
-        "case": "📋", "guide": "📖", "tool": "🛠",
-        "news": "📰", "insight": "💡",
-    }
-    emoji = category_emoji.get(post.category, "📌")
-    lines = [f"{emoji} <b>{post.summary or 'Новый пост'}</b>"]
-    if post.channel_name:
-        lines.append(f"📢 {post.channel_name}")
-    if post.original_date:
-        lines.append(f"📅 {post.original_date.strftime('%d.%m.%Y')}")
+    """Format post for publishing to channel."""
+    lines = []
+
+    # Summary as title with emoji
+    if post.summary:
+        lines.append(f"📌 <b>{post.summary}</b>")
+    else:
+        lines.append("📌 <b>Новый пост</b>")
+
+    # Full original text
+    lines.append("")
+    lines.append(post.original_text)
+
+    # Source link
+    source = _source_link(post)
+    if source:
+        lines.append(f"\n🔗 <a href='{source}'>Источник: {post.channel_name or post.channel_username}</a>")
+    elif post.channel_name:
+        lines.append(f"\n🔗 Источник: {post.channel_name}")
+
+    # Footer
+    lines.append(FOOTER)
+
+    return "\n".join(lines)
+
+
+def format_digest_approval(post: DigestPost) -> str:
+    """Format post for admin approval (in admin group)."""
+    lines = [f"📝 <b>Пост на апрув</b>\n"]
+
+    # Source channel with link
+    source = _source_link(post)
+    if source:
+        lines.append(f"📢 <a href='{source}'>{post.channel_name or post.channel_username}</a>")
+    else:
+        lines.append(f"📢 {post.channel_name or post.channel_username}")
+
+    # Summary
+    if post.summary:
+        lines.append(f"\n💡 <b>{post.summary}</b>")
+
+    # Full text
+    lines.append(f"\n{post.original_text}")
+
     return "\n".join(lines)
 
 
 def format_weekly_digest(summary: str, posts: list[DigestPost]) -> str:
+    """Format weekly digest for channel — only from published posts."""
     lines = ["📋 <b>Итоги недели в iGaming SEO</b>\n"]
     lines.append(summary)
     lines.append(f"\n📊 Опубликовано {len(posts)} постов за неделю")
+    lines.append(FOOTER)
     return "\n".join(lines)

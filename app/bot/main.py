@@ -219,14 +219,8 @@ async def weekly_callback(callback: CallbackQuery):
 # === SEND FUNCTIONS (called from scheduler) ===
 
 async def send_digest_approval(post: DigestPost):
-    text = (
-        f"📝 <b>Пост на апрув</b>\n\n"
-        f"📢 {post.channel_name}\n"
-        f"⭐ Оценка: {post.importance_score:.1f}/10\n"
-        f"🏷 {post.category}\n\n"
-        f"<b>{post.summary}</b>\n\n"
-        f"<i>{post.original_text[:500]}{'...' if len(post.original_text) > 500 else ''}</i>"
-    )
+    from app.services.digest import format_digest_approval
+    text = format_digest_approval(post)
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [
             InlineKeyboardButton(text="✅ Одобрить", callback_data=f"digest_approve_{post.id}"),

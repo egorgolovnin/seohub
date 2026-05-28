@@ -25,11 +25,12 @@ async def job_fetch_channels():
 
 
 async def job_score_posts():
-    """Score pending posts with AI every 6 hours."""
+    """Score pending posts with AI, then immediately send for approval."""
     logger.info("Starting scoring job")
     async with async_session() as db:
         pending = await digest.get_pending_posts(db, limit=30)
         scored = 0
+        scored_posts = []
         for post in pending:
             result = await ai.score_post(post.original_text)
             if result:
@@ -38,8 +39,20 @@ async def job_score_posts():
                 post.summary = result.get("summary", "")
                 post.status = "scored"
                 scored += 1
+                if post.importance_score >= 3.0:
+                    scored_posts.append(post)
         await db.commit()
         logger.info(f"Scored {scored}/{len(pending)} posts")
+
+    # Send scored posts for approval immediately
+    if scored_posts:
+        from app.bot.main import send_digest_approval
+        for post in scored_posts:
+            try:
+                await send_digest_approval(post)
+            except Exception as e:
+                logger.error(f"Failed to send approval for post {post.id}: {e}")
+        logger.info(f"Sent {len(scored_posts)} posts for approval")
 
 
 async def job_send_daily_digest():
