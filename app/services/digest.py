@@ -151,6 +151,16 @@ def _source_link(post: DigestPost) -> str:
     return ""
 
 
+def _clean_text(text: str) -> str:
+    """Clean markdown artifacts from text."""
+    import re
+    # Convert markdown links [text](url) to HTML <a href='url'>text</a>
+    text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r"<a href='\2'>\1</a>", text)
+    # Remove remaining markdown bold
+    text = text.replace("**", "")
+    return text
+
+
 def format_digest_post(post: DigestPost) -> str:
     """Format post for publishing to channel."""
     lines = []
@@ -175,10 +185,8 @@ def format_digest_post(post: DigestPost) -> str:
 
     # Clean up markdown artifacts
     result = "\n".join(lines)
-    result = result.replace("**", "")
+    result = _clean_text(result)
     return result
-
-
 def format_digest_approval(post: DigestPost) -> str:
     """Format post for admin approval (in admin group)."""
     lines = ["<b>Пост на апрув</b>\n"]
@@ -198,7 +206,7 @@ def format_digest_approval(post: DigestPost) -> str:
     lines.append(f"\n{post.original_text}")
 
     result = "\n".join(lines)
-    result = result.replace("**", "")
+    result = _clean_text(result)
     return result
 
 
@@ -209,5 +217,5 @@ def format_weekly_digest(summary: str, posts: list[DigestPost]) -> str:
     lines.append(f"\nОпубликовано {len(posts)} постов за неделю")
     lines.append(FOOTER)
     result = "\n".join(lines)
-    result = result.replace("**", "")
+    result = _clean_text(result)
     return result
