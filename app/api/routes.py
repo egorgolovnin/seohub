@@ -264,3 +264,20 @@ async def trigger_approval():
             pass
 
     return {"ok": True, "sent": sent, "total_scored": len(posts)}
+
+
+@router.post("/admin/fix-channels")
+async def fix_channels(db: AsyncSession = Depends(get_db)):
+    from sqlalchemy import select, update
+    from app.models.models import DigestChannel
+    broken = ["partnerkin_gambling","highroller_affiliate","igaming_highrisk","r2b_news","igamingnews_tg","igaming_redakciya","r2b_work","vredniy_buk","pmp_media","whitehattea","ggm_igaming","clvl_igaming","novosti_bk","affiliate_diaries","affmoment","seomoneymaker_channel","pm_talents","most_igaming","sport_marketolog"]
+    fixed = 0
+    for username in broken:
+        await db.execute(update(DigestChannel).where(DigestChannel.username == username).values(is_active=False))
+        fixed += 1
+    # Fix partnerkin to correct username
+    await db.execute(update(DigestChannel).where(DigestChannel.username == "partnerkin_gambling").values(username="thepartnerkin_gambl", is_active=True))
+    await db.commit()
+    result = await db.execute(select(DigestChannel).where(DigestChannel.is_active == True))
+    active = list(result.scalars().all())
+    return {"ok": True, "deactivated": fixed, "active_channels": len(active), "active": [c.username for c in active]}
