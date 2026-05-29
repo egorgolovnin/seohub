@@ -164,3 +164,83 @@ async def admin_events(days: int = 1, token: str = "", limit: int = 50):
             for e in events
         ]
     }
+
+
+@app.get("/api/admin/rates")
+async def admin_get_rates(token: str = ""):
+    if not _check_admin_token(token):
+        return {"ok": False}
+    from app.models.models import GeoRateCPA
+    from sqlalchemy import select
+    async with async_session() as db:
+        result = await db.execute(select(GeoRateCPA).order_by(GeoRateCPA.avg_cpa.desc()))
+        rows = result.scalars().all()
+    return {
+        "ok": True,
+        "rates": [
+            {"id": r.id, "geo": r.geo, "min": r.min_cpa, "avg": r.avg_cpa, "max": r.max_cpa}
+            for r in rows
+        ]
+    }
+
+
+@app.put("/api/admin/rates/{rate_id}")
+async def admin_update_rate(rate_id: int, request: Request):
+    data = await request.json()
+    if not _check_admin_token(data.get("token", "")):
+        return {"ok": False}
+    from app.models.models import GeoRateCPA
+    from sqlalchemy import select
+    async with async_session() as db:
+        result = await db.execute(select(GeoRateCPA).where(GeoRateCPA.id == rate_id))
+        rate = result.scalar_one_or_none()
+        if not rate:
+            return {"ok": False, "error": "not found"}
+        if "geo" in data:
+            rate.geo = data["geo"].upper()
+        if "min" in data:
+            rate.min_cpa = float(data["min"])
+        if "avg" in data:
+            rate.avg_cpa = float(data["avg"])
+        if "max" in data:
+            rate.max_cpa = float(data["max"])
+        await db.commit()
+    return {"ok": True}
+
+
+@app.post("/api/admin/rates")
+async def admin_add_rate(request: Request):
+    data = await request.json()
+    if not _check_admin_token(data.get("token", "")):
+        return {"ok": False}
+    from app.models.models import GeoRateCPA
+    async with async_session() as db:
+        rate = GeoRateCPA(
+            geo=data["geo"].upper(),
+            min_cpa=float(data["min"]),
+            avg_cpa=float(data["avg"]),
+            max_cpa=float(data["max"]),
+            data_points=1,
+            sources="admin",
+            programs="",
+        )
+        db.add(rate)
+        await db.commit()
+        await db.refresh(rate)
+    return {"ok": True, "id": rate.id}
+
+
+@app.delete("/api/admin/rates/{rate_id}")
+async def admin_delete_rate(rate_id: int, token: str = ""):
+    if not _check_admin_token(token):
+        return {"ok": False}
+    from app.models.models import GeoRateCPA
+    from sqlalchemy import select
+    async with async_session() as db:
+        result = await db.execute(select(GeoRateCPA).where(GeoRateCPA.id == rate_id))
+        rate = result.scalar_one_or_none()
+        if not rate:
+            return {"ok": False, "error": "not found"}
+        await db.delete(rate)
+        await db.commit()
+    return {"ok": True}
