@@ -1,6 +1,6 @@
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.models import GeoRateCPA, GeoRateRS, RateRaw, PPCondition
+from app.models.models import GeoRateCPA, PPCondition
 
 # GEO aliases: name → ISO code
 GEO_ALIASES = {
@@ -134,23 +134,6 @@ async def get_cpa_rates(db: AsyncSession, geo_filter: str | None = None) -> list
         {
             "geo": r.geo, "min": r.min_cpa, "avg": r.avg_cpa,
             "max": r.max_cpa, "points": r.data_points,
-            "sources": r.sources, "programs": r.programs,
-        }
-        for r in rows
-    ]
-
-
-async def get_rs_rates(db: AsyncSession, geo_filter: str | None = None) -> list[dict]:
-    query = select(GeoRateRS).order_by(GeoRateRS.avg_rs.desc())
-    if geo_filter:
-        resolved = resolve_geo_alias(geo_filter)
-        query = query.where(GeoRateRS.geo.ilike(f"%{resolved}%"))
-    result = await db.execute(query)
-    rows = result.scalars().all()
-    return [
-        {
-            "geo": r.geo, "min": r.min_rs, "avg": r.avg_rs,
-            "max": r.max_rs, "points": r.data_points,
             "sources": r.sources, "programs": r.programs,
         }
         for r in rows

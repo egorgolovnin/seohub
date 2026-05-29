@@ -4,7 +4,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.services.rates import get_cpa_rates, get_pp_conditions, get_rate_for_geo
 from app.services.reflinks import check_link
-from app.services.stats_analyzer import analyze_stats
 
 router = APIRouter(prefix="/api", tags=["api"])
 
@@ -35,26 +34,6 @@ async def api_check_link(url: str):
     await track("web_check", details=url[:100], source="web")
     result = await check_link(url)
     return result
-
-
-class StatsRequest(BaseModel):
-    program_name: str = ""
-    geo: str = ""
-    period: str = ""
-    model: str = ""
-    clicks: int = 0
-    registrations: int = 0
-    ftd: int = 0
-    deposits_sum: float = 0
-    ggr: float = 0
-    commission: float = 0
-
-
-@router.post("/analyze-stats")
-async def api_analyze_stats(req: StatsRequest):
-    stats = req.model_dump()
-    analysis = analyze_stats(stats, stats.get("geo", ""))
-    return {"stats": stats, "analysis": analysis}
 
 
 class IoffersRequest(BaseModel):

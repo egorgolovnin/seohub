@@ -1,3 +1,4 @@
+import re
 import logging
 from datetime import datetime, timedelta
 from sqlalchemy import select, func, and_
@@ -6,10 +7,24 @@ from app.models.models import DigestPost, DigestChannel, WeeklyDigest
 
 logger = logging.getLogger(__name__)
 
+SEPARATOR = "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯"
+
 FOOTER = (
-    "\n\n<a href='https://t.me/seonewsbyhub'>Подписывайся на наш канал</a>\n"
+    f"\n\n{SEPARATOR}\n"
+    "<a href='https://t.me/seonewsbyhub'>Подписывайся на наш канал</a>\n"
     "<a href='https://t.me/seohubmainbot'>Бот для iGaming SEO — ставки, проверка ссылок, антишейв</a>"
 )
+
+
+def _clean_text(text: str) -> str:
+    """Clean markdown artifacts from text."""
+    # Convert markdown links [text](url) to HTML <a href='url'>text</a>
+    text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r"<a href='\2'>\1</a>", text)
+    # Remove remaining markdown bold
+    text = text.replace("**", "")
+    # Remove excessive blank lines (3+ → 2)
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    return text.strip()
 
 
 async def save_raw_posts(db: AsyncSession, posts: list[dict]) -> int:
@@ -151,52 +166,43 @@ def _source_link(post: DigestPost) -> str:
     return ""
 
 
-def _clean_text(text: str) -> str:
-    """Clean markdown artifacts from text."""
-    import re
-    # Convert markdown links [text](url) to HTML <a href='url'>text</a>
-    text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r"<a href='\2'>\1</a>", text)
-    # Remove remaining markdown bold
-    text = text.replace("**", "")
-    return text
-
-
 def format_digest_post(post: DigestPost) -> str:
-    """Format post for publishing to channel."""
+    """Format post for publishing to channel — clean and beautiful."""
     lines = []
 
-    # Summary as title (no extra emoji - only what's in original text)
+    # Bold summary as headline
     if post.summary:
         lines.append(f"<b>{post.summary}</b>")
+        lines.append("")
 
     # Full original text
-    lines.append("")
     lines.append(post.original_text)
 
-    # Source link
+    # Source
     source = _source_link(post)
     if source:
-        lines.append(f"\n<a href='{source}'>Источник: {post.channel_name or post.channel_username}</a>")
+        lines.append(f"\n{SEPARATOR}")
+        lines.append(f"<a href='{source}'>{post.channel_name or post.channel_username}</a>")
     elif post.channel_name:
-        lines.append(f"\nИсточник: {post.channel_name}")
+        lines.append(f"\n{SEPARATOR}")
+        lines.append(post.channel_name)
 
     # Footer
     lines.append(FOOTER)
 
-    # Clean up markdown artifacts
-    result = "\n".join(lines)
-    result = _clean_text(result)
-    return result
+    return _clean_text("\n".join(lines))
+
+
 def format_digest_approval(post: DigestPost) -> str:
     """Format post for admin approval (in admin group)."""
     lines = ["<b>Пост на апрув</b>\n"]
 
-    # Source channel with link
+    # Source
     source = _source_link(post)
     if source:
         lines.append(f"<a href='{source}'>{post.channel_name or post.channel_username}</a>")
     else:
-        lines.append(f"{post.channel_name or post.channel_username}")
+        lines.append(post.channel_name or post.channel_username or "")
 
     # Summary
     if post.summary:
@@ -205,9 +211,7 @@ def format_digest_approval(post: DigestPost) -> str:
     # Full text
     lines.append(f"\n{post.original_text}")
 
-    result = "\n".join(lines)
-    result = _clean_text(result)
-    return result
+    return _clean_text("\n".join(lines))
 
 
 def format_weekly_digest(summary: str, posts: list[DigestPost]) -> str:
@@ -216,6 +220,4 @@ def format_weekly_digest(summary: str, posts: list[DigestPost]) -> str:
     lines.append(summary)
     lines.append(f"\nОпубликовано {len(posts)} постов за неделю")
     lines.append(FOOTER)
-    result = "\n".join(lines)
-    result = _clean_text(result)
-    return result
+    return _clean_text("\n".join(lines))
