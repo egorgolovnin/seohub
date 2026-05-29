@@ -11,8 +11,8 @@ SEPARATOR = "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯"
 
 FOOTER = (
     f"\n\n{SEPARATOR}\n"
-    "<a href='https://t.me/seonewsbyhub'>Подписывайся на наш канал</a>\n"
-    "<a href='https://t.me/seohubmainbot'>Бот для iGaming SEO — ставки, проверка ссылок, антишейв</a>"
+    "<a href='https://t.me/seonewsbyhub'>@seonewsbyhub</a> — всё про iGaming SEO в одном месте\n"
+    "<a href='https://t.me/seohubmainbot'>@seohubmainbot</a> — бот от SEOшников для SEOшников"
 )
 
 
