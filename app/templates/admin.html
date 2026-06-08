@@ -75,6 +75,7 @@ td input.geo-input{width:50px;text-align:center;text-transform:uppercase}
       <button class="nav-btn" onclick="showPage('lb',this)">Линкбилдинг</button>
       <button class="nav-btn" onclick="showPage('weekly',this)">Недельный дайджест</button>
       <button class="nav-btn" onclick="showPage('digch',this)">Каналы дайджеста</button>
+      <button class="nav-btn" onclick="showPage('analysis',this)">Анализ контента</button>
     </div>
 
     <!-- Analytics Page -->
@@ -207,6 +208,37 @@ td input.geo-input{width:50px;text-align:center;text-transform:uppercase}
         <p style="font-size:10px;color:var(--t2);margin-top:6px">Можно вставить несколько usernames через запятую или с новой строки (описание/подписчики применятся только при добавлении одного). Категория «SEO»/«Новости» влияет и на парсинг дайджеста, и на фильтр в каталоге на сайте.</p>
       </div>
     </div>
+
+    <!-- Content Analysis Page -->
+    <div class="page" id="pg-analysis">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div class="section-title" style="margin:0">Анализ контентмейкеров (<span id="anCount">0</span> каналов)</div>
+        <div style="display:flex;gap:6px">
+          <button class="btn" onclick="loadAnalysis()">Обновить</button>
+          <button class="btn btn-p" onclick="parseAllAnalysis()">⬇️ Спарсить историю</button>
+          <button class="btn btn-p" onclick="analyzeAll()">🧠 Анализ всех</button>
+        </div>
+      </div>
+      <div id="anProgress" style="display:none;margin-bottom:10px;padding:8px 10px;border-radius:8px;background:var(--bg3);color:var(--t2);font-size:12px"></div>
+
+      <div id="anChannels" style="margin-bottom:16px"></div>
+
+      <div class="section">
+        <div class="section-title">Добавить каналы для анализа</div>
+        <textarea id="an_usernames" placeholder="usernames или ссылки t.me, через запятую/с новой строки" style="width:100%;margin-bottom:6px"></textarea>
+        <button class="btn btn-p btn-sm" onclick="addAnalysisChannels()">Добавить</button>
+      </div>
+
+      <div class="section" style="margin-top:16px">
+        <div class="section-title">📊 Топ постов по охватам</div>
+        <div id="anTopPosts"><p style="color:var(--t2);font-size:12px">Спарси историю и нажми «Обновить».</p></div>
+      </div>
+
+      <div class="section" style="margin-top:16px">
+        <div class="section-title">🧠 Результаты анализа</div>
+        <div id="anReports"><p style="color:var(--t2);font-size:12px">Пока нет анализов. Спарси историю → «Анализ всех».</p></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -217,7 +249,7 @@ let token='',currentDays=1,ratesCount=0;
 
 function showToast(msg,ok){const t=document.getElementById('toast');t.textContent=msg;t.className='toast '+(ok?'ok':'err');t.style.display='block';setTimeout(()=>t.style.display='none',2000)}
 
-function showPage(name,el){document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('on'));el.classList.add('on');document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));document.getElementById('pg-'+name).classList.add('on');if(name==='rates')loadRates();if(name==='analytics')loadStats();if(name==='lb')loadLBAdmin();if(name==='channels')loadChAdmin();if(name==='weekly')loadWeekly();if(name==='digch')loadDigCh()}
+function showPage(name,el){document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('on'));el.classList.add('on');document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));document.getElementById('pg-'+name).classList.add('on');if(name==='rates')loadRates();if(name==='analytics')loadStats();if(name==='lb')loadLBAdmin();if(name==='channels')loadChAdmin();if(name==='weekly')loadWeekly();if(name==='digch')loadDigCh();if(name==='analysis')loadAnalysis()}
 
 async function doLogin(){
   const user=document.getElementById('loginUser').value,pass=document.getElementById('loginPass').value;
@@ -362,6 +394,53 @@ async function addDigCh(){
 }
 async function toggleDigCh(id,active){try{const r=await fetch(`/api/admin/digest-channels/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,is_active:!!active})});const d=await r.json();if(d.ok)loadDigCh()}catch(e){}}
 async function delDigCh(id){if(!confirm('Удалить канал из дайджеста?'))return;try{const r=await fetch(`/api/admin/digest-channels/${id}?token=${token}`,{method:'DELETE'});const d=await r.json();if(d.ok){showToast('Удалено',true);loadDigCh()}}catch(e){}}
+
+// ===== Content analysis =====
+let anChannelsCache=[];
+async function loadAnalysis(){
+  try{
+    const r=await fetch(`/api/admin/analysis/channels?token=${token}`);const d=await r.json();if(!d.ok)return;
+    anChannelsCache=d.items;document.getElementById('anCount').textContent=d.items.length;
+    document.getElementById('anChannels').innerHTML='<div class="g2">'+d.items.map(it=>`<div class="card" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:0"><div style="display:flex;justify-content:space-between;align-items:center;gap:6px"><div style="min-width:0"><b style="font-size:12px">@${it.username}</b><div style="font-size:10px;color:var(--t3)">${it.msg_count} постов${it.last_parsed?' · '+it.last_parsed:' · не спарсен'}</div></div><div style="display:flex;gap:3px;flex-shrink:0"><button class="btn btn-sm" onclick="parseOne('${it.username}')">⬇️</button><button class="btn btn-sm" onclick="analyzeOne('${it.username}')">🧠</button><button class="btn btn-d btn-sm" onclick="removeAn(${it.id})">✕</button></div></div></div>`).join('')+'</div>';
+    loadAnOverview();loadAnReports();
+  }catch(e){console.error(e)}
+}
+async function loadAnOverview(){
+  try{const r=await fetch(`/api/admin/analysis/overview?token=${token}`);const d=await r.json();if(!d.ok)return;
+  if(!d.top_posts||!d.top_posts.length){document.getElementById('anTopPosts').innerHTML='<p style="color:var(--t2);font-size:12px">Нет данных — спарси историю.</p>';return}
+  document.getElementById('anTopPosts').innerHTML=`<p style="font-size:11px;color:var(--t2);margin-bottom:8px">Всего постов: ${d.total_msgs} из ${d.parsed_channels} каналов</p>`+d.top_posts.map((p,i)=>`<div class="card" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:5px"><div style="display:flex;justify-content:space-between;gap:8px"><div style="min-width:0"><b style="font-size:11px">@${p.channel}</b> <span style="font-size:10px;color:var(--t3)">${p.date}</span><div style="font-size:11px;color:var(--t2);margin-top:2px">${p.preview}…</div></div><div style="text-align:right;flex-shrink:0;font-size:10px"><div style="color:var(--acc)">👁 ${p.views}</div><div style="color:var(--t3)">🔁 ${p.forwards} · ❤ ${p.reactions}</div><a href="${p.link}" target="_blank" style="color:var(--acc);font-size:10px">→</a></div></div></div>`).join('');
+  }catch(e){}
+}
+async function loadAnReports(){
+  try{const r=await fetch(`/api/admin/analysis/reports?token=${token}`);const d=await r.json();if(!d.ok)return;
+  if(!d.reports||!d.reports.length){document.getElementById('anReports').innerHTML='<p style="color:var(--t2);font-size:12px">Пока нет анализов.</p>';return}
+  document.getElementById('anReports').innerHTML=d.reports.map(rp=>`<div class="card" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px"><div style="font-size:13px;font-weight:600;margin-bottom:6px">@${rp.username} <span style="font-size:10px;color:var(--t3);font-weight:400">${rp.msg_count} постов · ${rp.analyzed_at}</span></div><div style="font-size:11px;line-height:1.6"><div style="margin-bottom:4px"><span style="color:var(--org)">🎯 Боли/проблемы:</span> ${rp.problems||'—'}</div><div style="margin-bottom:4px"><span style="color:var(--grn)">📦 Продукты:</span> ${rp.products||'—'}</div><div style="margin-bottom:4px"><span style="color:var(--acc)">🗂 Темы:</span> ${rp.themes||'—'}</div>${(rp.top_posts||[]).length?'<div style="margin-top:4px;font-size:10px;color:var(--t3)">Топ: '+rp.top_posts.map(t=>`<a href="${t.link}" target="_blank" style="color:var(--acc)">${t.views}👁</a>`).join(' · ')+'</div>':''}</div></div>`).join('');
+  }catch(e){}
+}
+async function addAnalysisChannels(){
+  const raw=document.getElementById('an_usernames').value.trim();if(!raw){showToast('Вставь usernames',false);return}
+  try{const r=await fetch('/api/admin/analysis/channels',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,usernames:raw})});const d=await r.json();if(d.ok){showToast(`Добавлено: ${d.added}`,true);document.getElementById('an_usernames').value='';loadAnalysis()}else{showToast('Ошибка',false)}}catch(e){showToast('Ошибка',false)}
+}
+async function removeAn(id){if(!confirm('Удалить канал и его данные анализа?'))return;try{const r=await fetch(`/api/admin/analysis/channels/${id}?token=${token}`,{method:'DELETE'});const d=await r.json();if(d.ok){showToast('Удалено',true);loadAnalysis()}}catch(e){}}
+function anProg(msg){const b=document.getElementById('anProgress');b.style.display='block';b.textContent=msg}
+async function parseOne(u){anProg(`⬇️ Парсю @${u}...`);try{const r=await fetch('/api/admin/analysis/parse',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,username:u})});const d=await r.json();anProg(d.ok?`✅ @${u}: +${d.stored} новых (всего ${d.total||0})`:`❌ @${u}: ${d.error||'ошибка'}`);loadAnalysis()}catch(e){anProg(`❌ @${u}: сеть`)}}
+async function parseAllAnalysis(){
+  const chans=anChannelsCache.slice();if(!chans.length){showToast('Нет каналов',false);return}
+  let i=0,totalNew=0;
+  for(const c of chans){i++;anProg(`⬇️ Парсинг ${i}/${chans.length}: @${c.username}...`);
+    try{const r=await fetch('/api/admin/analysis/parse',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,username:c.username})});const d=await r.json();if(d.ok)totalNew+=(d.stored||0)}catch(e){}
+  }
+  anProg(`✅ Парсинг завершён. Новых постов: ${totalNew}`);loadAnalysis();
+}
+async function analyzeOne(u){anProg(`🧠 Анализирую @${u}...`);try{const r=await fetch('/api/admin/analysis/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,username:u})});const d=await r.json();anProg(d.ok?`✅ @${u} проанализирован`:`❌ @${u}: ${d.error||'ошибка'}`);loadAnReports()}catch(e){anProg(`❌ @${u}: сеть`)}}
+async function analyzeAll(){
+  const chans=anChannelsCache.filter(c=>c.msg_count>0);if(!chans.length){showToast('Сначала спарси историю',false);return}
+  let i=0,ok=0;
+  for(const c of chans){i++;anProg(`🧠 Анализ ${i}/${chans.length}: @${c.username}...`);
+    try{const r=await fetch('/api/admin/analysis/ai',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,username:c.username})});const d=await r.json();if(d.ok)ok++}catch(e){}
+  }
+  anProg(`✅ Проанализировано каналов: ${ok}/${chans.length}`);loadAnReports();
+}
 
 document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
 </script>

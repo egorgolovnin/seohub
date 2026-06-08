@@ -90,3 +90,38 @@ async def check_channels_resolve(usernames: list[str]) -> dict:
     finally:
         await client.disconnect()
     return out
+
+
+async def fetch_channel_history(client, username: str, limit: int = 80, days_back: int = 120) -> list[dict]:
+    """Fetch recent history of a channel with engagement metrics."""
+    from datetime import datetime, timedelta, timezone
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days_back)
+    uname = (username or "").lstrip("@").strip()
+    out = []
+    try:
+        entity = await client.get_entity(uname)
+        title = getattr(entity, "title", uname)
+        async for m in client.iter_messages(entity, limit=limit):
+            if m.date and m.date < cutoff:
+                break
+            text = (m.message or "").strip()
+            if not text:
+                continue
+            reactions = 0
+            if getattr(m, "reactions", None) and getattr(m.reactions, "results", None):
+                reactions = sum((r.count or 0) for r in m.reactions.results)
+            out.append({
+                "channel_username": uname,
+                "channel_name": title,
+                "message_id": m.id,
+                "date": m.date.replace(tzinfo=None) if m.date else None,
+                "text": text,
+                "views": int(getattr(m, "views", 0) or 0),
+                "forwards": int(getattr(m, "forwards", 0) or 0),
+                "reactions": reactions,
+                "link": f"https://t.me/{uname}/{m.id}",
+            })
+    except Exception as e:
+        logger.error(f"History fetch failed for {uname}: {e}")
+        return []
+    return out

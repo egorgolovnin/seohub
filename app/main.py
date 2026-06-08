@@ -27,6 +27,8 @@ async def lifespan(app: FastAPI):
         from app.services.catalog import seed_catalogs
         async with async_session() as db:
             await seed_catalogs(db)
+            from app.services.content_analysis import seed_analysis_channels
+            await seed_analysis_channels(db)
     except Exception as e:
         logger.error(f"Catalog seed failed: {e}")
     bot = get_bot()
@@ -620,3 +622,89 @@ async def admin_delete_digest_channel(item_id: int, token: str = ""):
         await db.delete(item)
         await db.commit()
     return {"ok": True}
+
+
+# ============ ADMIN: Content analysis ============
+
+@app.get("/api/admin/analysis/channels")
+async def admin_analysis_channels(token: str = ""):
+    if not _check_admin_token(token):
+        return {"ok": False}
+    from app.services.content_analysis import list_channels
+    async with async_session() as db:
+        items = await list_channels(db)
+    return {"ok": True, "items": items}
+
+
+@app.post("/api/admin/analysis/channels")
+async def admin_analysis_add(request: Request):
+    data = await request.json()
+    if not _check_admin_token(data.get("token", "")):
+        return {"ok": False}
+    raw = data.get("usernames", "") or ""
+    import re
+    usernames = [u for u in re.split(r"[\s,]+", raw.replace("https://t.me/", "").replace("t.me/", "")) if u]
+    from app.services.content_analysis import add_channels
+    async with async_session() as db:
+        added = await add_channels(db, usernames)
+    return {"ok": True, "added": added}
+
+
+@app.delete("/api/admin/analysis/channels/{channel_id}")
+async def admin_analysis_remove(channel_id: int, token: str = ""):
+    if not _check_admin_token(token):
+        return {"ok": False}
+    from app.services.content_analysis import remove_channel
+    async with async_session() as db:
+        ok = await remove_channel(db, channel_id)
+    return {"ok": ok}
+
+
+@app.post("/api/admin/analysis/parse")
+async def admin_analysis_parse(request: Request):
+    data = await request.json()
+    if not _check_admin_token(data.get("token", "")):
+        return {"ok": False}
+    username = (data.get("username", "") or "").lstrip("@").strip()
+    if not username:
+        return {"ok": False, "error": "username required (parse one channel per call)"}
+    from app.services.content_analysis import parse_channel
+    async with async_session() as db:
+        res = await parse_channel(db, username,
+                                  limit=int(data.get("limit", 80)),
+                                  days_back=int(data.get("days_back", 120)))
+    return res
+
+
+@app.get("/api/admin/analysis/overview")
+async def admin_analysis_overview(token: str = ""):
+    if not _check_admin_token(token):
+        return {"ok": False}
+    from app.services.content_analysis import get_overview
+    async with async_session() as db:
+        ov = await get_overview(db)
+    return {"ok": True, **ov}
+
+
+@app.post("/api/admin/analysis/ai")
+async def admin_analysis_ai(request: Request):
+    data = await request.json()
+    if not _check_admin_token(data.get("token", "")):
+        return {"ok": False}
+    username = (data.get("username", "") or "").lstrip("@").strip()
+    if not username:
+        return {"ok": False, "error": "username required"}
+    from app.services.content_analysis import analyze_channel
+    async with async_session() as db:
+        res = await analyze_channel(db, username)
+    return res
+
+
+@app.get("/api/admin/analysis/reports")
+async def admin_analysis_reports(token: str = ""):
+    if not _check_admin_token(token):
+        return {"ok": False}
+    from app.services.content_analysis import get_reports
+    async with async_session() as db:
+        reports = await get_reports(db)
+    return {"ok": True, "reports": reports}

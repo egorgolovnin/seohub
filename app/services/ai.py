@@ -181,3 +181,38 @@ async def _notify_admin_api_result(user_info: str, input_tokens: int, output_tok
         await notify_admin(text)
     except Exception as e:
         logger.error(f"Admin notify error: {e}")
+
+
+CONTENT_ANALYSIS_SYSTEM = """Ты — аналитик контента в нише SEO/iGaming. Тебе дают выборку постов одного Telegram-канала.
+Проанализируй автора как контентмейкера и верни СТРОГО JSON без пояснений и markdown:
+{"problems": "Какие проблемы/боли аудитории и индустрии поднимает автор (2-4 пункта, через ; )",
+ "products": "Какие конкретные продукты, сервисы, инструменты он упоминает/рекомендует (перечисли названия через ; , если нет — 'не выявлено')",
+ "themes": "Основные темы и о чём канал в целом (2-4 пункта через ; )"}
+Пиши на русском, кратко и по делу."""
+
+
+async def analyze_content(channel_name: str, messages_text: str) -> dict | None:
+    settings = get_settings()
+    if not settings.anthropic_api_key:
+        return None
+    try:
+        client = AsyncAnthropic(api_key=settings.anthropic_api_key)
+        response = await client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=700,
+            system=CONTENT_ANALYSIS_SYSTEM,
+            messages=[{"role": "user", "content": f"Канал: {channel_name}\n\nПосты:\n\n{messages_text[:12000]}"}],
+        )
+        raw = response.content[0].text.strip()
+        it, ot = response.usage.input_tokens, response.usage.output_tokens
+        cost = (it * 0.80 + ot * 4.0) / 1_000_000
+        await _notify_admin_api_result(f"content analysis ({channel_name})", it, ot, cost)
+        raw = raw.removeprefix("```json").removesuffix("```").strip()
+        import re
+        match = re.search(r"\{.*\}", raw, re.S)
+        if match:
+            raw = match.group(0)
+        return json.loads(raw)
+    except Exception as e:
+        logger.error(f"Content analysis error: {e}")
+        return None

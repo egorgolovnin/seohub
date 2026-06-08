@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, BigInteger, String, Float, DateTime, Text, Boolean, JSON
+from sqlalchemy import Column, Integer, BigInteger, String, Float, DateTime, Text, Boolean, JSON, UniqueConstraint
 from sqlalchemy.sql import func
 from app.database import Base
 
@@ -101,3 +101,41 @@ class AnalyticsEvent(Base):
     cost = Column(Float, default=0)  # API cost in USD
     source = Column(String(20), default="bot")  # bot or web
     created_at = Column(DateTime, server_default=func.now(), index=True)
+
+
+class AnalysisChannel(Base):
+    __tablename__ = "analysis_channels"
+    id = Column(Integer, primary_key=True)
+    username = Column(String(100), nullable=False, unique=True)
+    name = Column(String(200))
+    is_active = Column(Boolean, default=True)
+    last_parsed = Column(DateTime)
+    msg_count = Column(Integer, default=0)
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class ChannelMessage(Base):
+    __tablename__ = "channel_messages"
+    id = Column(Integer, primary_key=True)
+    channel_username = Column(String(100), nullable=False, index=True)
+    message_id = Column(Integer, nullable=False)
+    date = Column(DateTime)
+    text = Column(Text)
+    views = Column(Integer, default=0)
+    forwards = Column(Integer, default=0)
+    reactions = Column(Integer, default=0)
+    link = Column(String(300))
+    created_at = Column(DateTime, server_default=func.now())
+    __table_args__ = (UniqueConstraint("channel_username", "message_id", name="uq_channel_msg"),)
+
+
+class ChannelAnalysis(Base):
+    __tablename__ = "channel_analysis"
+    id = Column(Integer, primary_key=True)
+    channel_username = Column(String(100), nullable=False, unique=True)
+    problems = Column(Text)
+    products = Column(Text)
+    themes = Column(Text)
+    top_posts = Column(JSON)
+    msg_count = Column(Integer, default=0)
+    analyzed_at = Column(DateTime, server_default=func.now())
