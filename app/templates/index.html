@@ -76,9 +76,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}th{text-align:left;padd
     <button class="nl" onclick="go('lookup')">Пробей сайт</button>
     <button class="nl" onclick="go('sites')">Купля/продажа</button>
     <button class="nl" onclick="go('kb')">База знаний</button>
-    <button class="nl" onclick="go('blog')">Блог</button>
-    <button class="nl" onclick="go('jobs')">Вакансии</button>
-    <button class="nl" onclick="go('pp')">Рейтинг ПП</button>
+    <button class="nl" onclick="go('dev')">В разработке</button>
   </div>
 </nav>
 
@@ -282,6 +280,26 @@ table{width:100%;border-collapse:collapse;font-size:12px}th{text-align:left;padd
 </div>
 
 <!-- BLOG -->
+<!-- IN DEVELOPMENT HUB -->
+<div id="dev" class="pg">
+  <h1 class="pt">🚧 В разработке</h1>
+  <p class="ps">Разделы, которые мы скоро запустим. Загляни — или подпишись на <strong style="color:var(--acc)">@seonewsbyhub</strong>, чтобы не пропустить.</p>
+  <div class="g2">
+    <div class="card" style="cursor:pointer;margin-bottom:0" onclick="go('blog')">
+      <div style="font-size:14px;font-weight:700;margin-bottom:4px">📝 Блог <span class="soon">🔜 Скоро</span></div>
+      <p style="font-size:12px;color:var(--t2);line-height:1.5">Короткие статьи и инсайты на основе 50+ SEO-каналов: тренды, решения, разборы.</p>
+    </div>
+    <div class="card" style="cursor:pointer;margin-bottom:0" onclick="go('jobs')">
+      <div style="font-size:14px;font-weight:700;margin-bottom:4px">💼 Вакансии <span class="soon">🔜 Скоро</span></div>
+      <p style="font-size:12px;color:var(--t2);line-height:1.5">Биржа исполнителей и проектов: SEO-специалисты, копирайтеры, разработчики.</p>
+    </div>
+    <div class="card" style="cursor:pointer;margin-bottom:0" onclick="go('pp')">
+      <div style="font-size:14px;font-weight:700;margin-bottom:4px">⚖️ Рейтинг ПП <span class="soon">🔜 Скоро</span></div>
+      <p style="font-size:12px;color:var(--t2);line-height:1.5">% негатива по партнёркам из реальных чатов. Рейтинг не покупается — только факты.</p>
+    </div>
+  </div>
+</div>
+
 <div id="blog" class="pg">
   <h1 class="pt">📝 Блог</h1>
   
@@ -346,7 +364,6 @@ table{width:100%;border-collapse:collapse;font-size:12px}th{text-align:left;padd
 <div id="channels" class="pg">
   <h1 class="pt">📡 Каталог SEO-каналов</h1>
   <p class="ps">Подборка Telegram-каналов и чатов по SEO, гемблингу, трафику и партнёркам. Фильтруй по категории.</p>
-  <div class="tabs" id="chTabs"></div>
   <div id="chList"><p style="color:var(--t2);font-size:12px">Загрузка...</p></div>
 </div>
 
@@ -406,17 +423,10 @@ async function submitLB(){
 }
 
 // ===== SEO channels catalog =====
-let chCat='';
 async function loadChannels(){
   const list=document.getElementById('chList');
   try{
-    let url='/api/channels?';
-    if(chCat)url+='category='+encodeURIComponent(chCat);
-    const r=await fetch(url);const d=await r.json();
-    if(d.categories&&!document.getElementById('chTabs').innerHTML){
-      const tabs=document.getElementById('chTabs');
-      tabs.innerHTML='<button class="tab on" onclick="setChCat(\'\',this)">Все</button>'+Object.entries(d.categories).map(([k,v])=>`<button class="tab" onclick="setChCat('${k}',this)">${v}</button>`).join('');
-    }
+    const r=await fetch('/api/channels');const d=await r.json();
     const items=d.data||[];
     if(!items.length){list.innerHTML='<p style="color:var(--t2);font-size:12px">Ничего не найдено.</p>';return}
     list.innerHTML='<div class="g2">'+items.map(it=>{
@@ -425,14 +435,13 @@ async function loadChannels(){
         <div style="display:flex;justify-content:space-between;align-items:center">
           <div style="font-size:13px;font-weight:600">${it.name}</div>${subs}
         </div>
-        <div style="margin:3px 0"><span class="tag tag-p">${it.category_label}</span>${it.username?`<span class="tag tag-b">@${it.username}</span>`:''}</div>
+        <div style="margin:3px 0">${it.username?`<span class="tag tag-b">@${it.username}</span>`:''}</div>
         ${it.description?`<p style="font-size:11px;color:var(--t2);margin:4px 0;line-height:1.5">${it.description}</p>`:''}
         ${it.url?`<a href="${it.url}" target="_blank" rel="noopener" style="color:var(--acc);font-size:11px;text-decoration:none">Открыть канал →</a>`:''}
       </div>`;
     }).join('')+'</div>';
   }catch(e){list.innerHTML='<p style="color:var(--red);font-size:12px">Ошибка загрузки.</p>'}
 }
-function setChCat(c,el){chCat=c;document.querySelectorAll('#chTabs .tab').forEach(x=>x.classList.remove('on'));el.classList.add('on');loadChannels()}
 function iC(r){const b=document.getElementById(r==='seo'?'sCB':'aCB');const d=r==='seo'?sR:aR;b.innerHTML=`<div class="m m-b"><div class="mb">${d.hi.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')}</div></div>`}
 function sM(r){const iId=r==='seo'?'sI':'aI';const bId=r==='seo'?'sCB':'aCB';const i=document.getElementById(iId);const msg=i.value.trim();if(!msg)return;const b=document.getElementById(bId);b.innerHTML+=`<div class="m m-u fade"><div class="mu">${msg}</div></div>`;i.value='';setTimeout(()=>{let resp='Попробуй конкретнее — ГЕО, ПП или проблему.';const q=msg.toLowerCase();const db=r==='seo'?sR:aR;for(const[k,v]of Object.entries(db)){if(k!=='hi'&&q.includes(k)){resp=v;break}}if(r==='am'){const c=q.replace(/https?:\/\//,'').replace('www.','').replace(/\/$/,'');if(S[c]){const s=S[c];resp=`🔍 **${c}**\n${s.t} | ${s.g} | ${s.m}\nКонтакт: ${s.c}`;}}b.innerHTML+=`<div class="m m-b fade"><div class="mb">${resp.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')}</div></div>`;b.scrollTop=b.scrollHeight},400)}
 function sS(){sM('seo')}function aS(){sM('am')}function qS(m){document.getElementById('sI').value=m;sS()}function qA(m){document.getElementById('aI').value=m;aS()}
