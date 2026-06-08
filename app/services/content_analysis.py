@@ -1,13 +1,18 @@
-"""Deep content analysis of SEO content-makers: history parsing + AI insights."""
+"""Deep content analysis of SEO content-makers.
+
+Channels are the SAME unified set as the digest (digest_channels). This module
+adds full-history parsing + AI insights on top of that single list.
+"""
 import logging
 from datetime import datetime
-from sqlalchemy import select, func, delete
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.models import AnalysisChannel, ChannelMessage, ChannelAnalysis
+from app.models.models import DigestChannel, ChannelMessage, ChannelAnalysis
 
 logger = logging.getLogger(__name__)
 
-ANALYSIS_SEED = [
+# SEO content-maker channels to fold into the unified channel list.
+SEO_CHANNELS_SEED = [
     "pavlutskiy", "tkhychs", "MoneyBeatsEvil", "diceseo", "reg2bet", "bakushevaseo",
     "heymoneymaker", "shakinru", "drmaxseo", "SEOBAZA", "itest_ua", "sealytics",
     "altblogru", "seoideas", "bez_seo", "vysokoffru", "mypbn", "seonica", "seofishku",
@@ -18,50 +23,48 @@ ANALYSIS_SEED = [
 ]
 
 
-async def seed_analysis_channels(db: AsyncSession):
-    existing = {r[0] for r in (await db.execute(select(AnalysisChannel.username))).all()}
+async def seed_seo_channels(db: AsyncSession):
+    """Ensure the SEO content-maker channels exist in the unified digest_channels list."""
+    existing = {(r[0] or "").lstrip("@").lower() for r in (await db.execute(select(DigestChannel.username))).all()}
     added = 0
-    for uname in ANALYSIS_SEED:
-        if uname.lower() in {e.lower() for e in existing}:
+    for uname in SEO_CHANNELS_SEED:
+        u = uname.lstrip("@")
+        if u.lower() in existing:
             continue
-        db.add(AnalysisChannel(username=uname, name=uname, is_active=True))
+        db.add(DigestChannel(channel_id=f"seo_{u}", name=u, username=u, category="seo", is_active=True))
+        existing.add(u.lower())
         added += 1
     if added:
         await db.commit()
-        logger.info(f"Seeded {added} analysis channels")
+        logger.info(f"Seeded {added} SEO content-maker channels into digest_channels")
+
+
+async def _stats_by_channel(db: AsyncSession) -> dict:
+    rows = (await db.execute(
+        select(ChannelMessage.channel_username, func.count(ChannelMessage.id), func.max(ChannelMessage.date))
+        .group_by(ChannelMessage.channel_username)
+    )).all()
+    return {(u or "").lower(): {"msgs": c, "last": last} for u, c, last in rows}
 
 
 async def list_channels(db: AsyncSession) -> list[dict]:
-    rows = (await db.execute(select(AnalysisChannel).order_by(AnalysisChannel.username))).scalars().all()
-    return [{"id": r.id, "username": r.username, "name": r.name, "is_active": r.is_active,
-             "last_parsed": r.last_parsed.strftime("%d.%m %H:%M") if r.last_parsed else None,
-             "msg_count": r.msg_count or 0} for r in rows]
-
-
-async def add_channels(db: AsyncSession, usernames: list[str]) -> int:
-    existing = {r[0].lower() for r in (await db.execute(select(AnalysisChannel.username))).all()}
-    added = 0
-    for u in usernames:
-        uname = (u or "").lstrip("@").strip()
-        if not uname or uname.lower() in existing:
+    """Analysis targets = active digest channels, enriched with parsed-message stats."""
+    chans = (await db.execute(
+        select(DigestChannel).where(DigestChannel.is_active == True).order_by(DigestChannel.name)
+    )).scalars().all()
+    stats = await _stats_by_channel(db)
+    out = []
+    for r in chans:
+        uname = (r.username or "").lstrip("@")
+        if not uname:
             continue
-        db.add(AnalysisChannel(username=uname, name=uname, is_active=True))
-        existing.add(uname.lower())
-        added += 1
-    if added:
-        await db.commit()
-    return added
-
-
-async def remove_channel(db: AsyncSession, channel_id: int) -> bool:
-    ch = (await db.execute(select(AnalysisChannel).where(AnalysisChannel.id == channel_id))).scalar_one_or_none()
-    if not ch:
-        return False
-    await db.execute(delete(ChannelMessage).where(ChannelMessage.channel_username == ch.username))
-    await db.execute(delete(ChannelAnalysis).where(ChannelAnalysis.channel_username == ch.username))
-    await db.delete(ch)
-    await db.commit()
-    return True
+        st = stats.get(uname.lower(), {})
+        out.append({
+            "username": uname, "name": r.name,
+            "msg_count": st.get("msgs", 0),
+            "last_parsed": st["last"].strftime("%d.%m %H:%M") if st.get("last") else None,
+        })
+    return out
 
 
 async def parse_channel(db: AsyncSession, username: str, limit: int = 80, days_back: int = 120) -> dict:
@@ -75,16 +78,14 @@ async def parse_channel(db: AsyncSession, username: str, limit: int = 80, days_b
     finally:
         await client.disconnect()
     if not msgs:
-        return {"ok": True, "fetched": 0, "stored": 0}
+        return {"ok": True, "fetched": 0, "stored": 0, "total": 0}
     uname = msgs[0]["channel_username"]
-    title = msgs[0]["channel_name"]
     existing = {r[0] for r in (await db.execute(
         select(ChannelMessage.message_id).where(ChannelMessage.channel_username == uname)
     )).all()}
     stored = 0
     for m in msgs:
         if m["message_id"] in existing:
-            # update engagement metrics on re-parse
             await db.execute(
                 ChannelMessage.__table__.update()
                 .where((ChannelMessage.channel_username == uname) & (ChannelMessage.message_id == m["message_id"]))
@@ -97,21 +98,14 @@ async def parse_channel(db: AsyncSession, username: str, limit: int = 80, days_b
             reactions=m["reactions"], link=m["link"],
         ))
         stored += 1
-    # update channel meta
-    ch = (await db.execute(select(AnalysisChannel).where(AnalysisChannel.username == uname))).scalar_one_or_none()
+    await db.commit()
     total = (await db.execute(
         select(func.count(ChannelMessage.id)).where(ChannelMessage.channel_username == uname)
     )).scalar() or 0
-    if ch:
-        ch.name = title
-        ch.last_parsed = datetime.utcnow()
-        ch.msg_count = total + stored
-    await db.commit()
-    return {"ok": True, "channel": uname, "fetched": len(msgs), "stored": stored, "total": total + stored}
+    return {"ok": True, "channel": uname, "fetched": len(msgs), "stored": stored, "total": total}
 
 
 async def get_overview(db: AsyncSession) -> dict:
-    # per-channel message counts
     rows = (await db.execute(
         select(ChannelMessage.channel_username, func.count(ChannelMessage.id),
                func.coalesce(func.sum(ChannelMessage.views), 0))
@@ -121,7 +115,6 @@ async def get_overview(db: AsyncSession) -> dict:
         [{"username": u, "msgs": c, "total_views": int(v)} for u, c, v in rows],
         key=lambda x: x["msgs"], reverse=True,
     )
-    # global top posts by views
     top = (await db.execute(
         select(ChannelMessage).order_by(ChannelMessage.views.desc().nullslast()).limit(25)
     )).scalars().all()
@@ -131,9 +124,8 @@ async def get_overview(db: AsyncSession) -> dict:
         "preview": (t.text or "")[:140].replace("\n", " "),
         "date": t.date.strftime("%d.%m.%y") if t.date else "",
     } for t in top]
-    total_msgs = sum(c["msgs"] for c in channels)
     return {"channels": channels, "top_posts": top_posts,
-            "total_msgs": total_msgs, "parsed_channels": len(channels)}
+            "total_msgs": sum(c["msgs"] for c in channels), "parsed_channels": len(channels)}
 
 
 async def analyze_channel(db: AsyncSession, username: str) -> dict:

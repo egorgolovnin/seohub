@@ -103,17 +103,6 @@ class AnalyticsEvent(Base):
     created_at = Column(DateTime, server_default=func.now(), index=True)
 
 
-class AnalysisChannel(Base):
-    __tablename__ = "analysis_channels"
-    id = Column(Integer, primary_key=True)
-    username = Column(String(100), nullable=False, unique=True)
-    name = Column(String(200))
-    is_active = Column(Boolean, default=True)
-    last_parsed = Column(DateTime)
-    msg_count = Column(Integer, default=0)
-    created_at = Column(DateTime, server_default=func.now())
-
-
 class ChannelMessage(Base):
     __tablename__ = "channel_messages"
     id = Column(Integer, primary_key=True)

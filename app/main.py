@@ -27,8 +27,8 @@ async def lifespan(app: FastAPI):
         from app.services.catalog import seed_catalogs
         async with async_session() as db:
             await seed_catalogs(db)
-            from app.services.content_analysis import seed_analysis_channels
-            await seed_analysis_channels(db)
+            from app.services.content_analysis import seed_seo_channels
+            await seed_seo_channels(db)
     except Exception as e:
         logger.error(f"Catalog seed failed: {e}")
     bot = get_bot()
@@ -634,30 +634,6 @@ async def admin_analysis_channels(token: str = ""):
     async with async_session() as db:
         items = await list_channels(db)
     return {"ok": True, "items": items}
-
-
-@app.post("/api/admin/analysis/channels")
-async def admin_analysis_add(request: Request):
-    data = await request.json()
-    if not _check_admin_token(data.get("token", "")):
-        return {"ok": False}
-    raw = data.get("usernames", "") or ""
-    import re
-    usernames = [u for u in re.split(r"[\s,]+", raw.replace("https://t.me/", "").replace("t.me/", "")) if u]
-    from app.services.content_analysis import add_channels
-    async with async_session() as db:
-        added = await add_channels(db, usernames)
-    return {"ok": True, "added": added}
-
-
-@app.delete("/api/admin/analysis/channels/{channel_id}")
-async def admin_analysis_remove(channel_id: int, token: str = ""):
-    if not _check_admin_token(token):
-        return {"ok": False}
-    from app.services.content_analysis import remove_channel
-    async with async_session() as db:
-        ok = await remove_channel(db, channel_id)
-    return {"ok": ok}
 
 
 @app.post("/api/admin/analysis/parse")

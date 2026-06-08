@@ -224,9 +224,7 @@ td input.geo-input{width:50px;text-align:center;text-transform:uppercase}
       <div id="anChannels" style="margin-bottom:16px"></div>
 
       <div class="section">
-        <div class="section-title">Добавить каналы для анализа</div>
-        <textarea id="an_usernames" placeholder="usernames или ссылки t.me, через запятую/с новой строки" style="width:100%;margin-bottom:6px"></textarea>
-        <button class="btn btn-p btn-sm" onclick="addAnalysisChannels()">Добавить</button>
+        <p style="font-size:11px;color:var(--t2);margin:0">Каналы берутся из единого списка во вкладке <b>«Каналы дайджеста»</b> — добавляй/выключай их там. Анализируются все активные каналы.</p>
       </div>
 
       <div class="section" style="margin-top:16px">
@@ -401,7 +399,7 @@ async function loadAnalysis(){
   try{
     const r=await fetch(`/api/admin/analysis/channels?token=${token}`);const d=await r.json();if(!d.ok)return;
     anChannelsCache=d.items;document.getElementById('anCount').textContent=d.items.length;
-    document.getElementById('anChannels').innerHTML='<div class="g2">'+d.items.map(it=>`<div class="card" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:0"><div style="display:flex;justify-content:space-between;align-items:center;gap:6px"><div style="min-width:0"><b style="font-size:12px">@${it.username}</b><div style="font-size:10px;color:var(--t3)">${it.msg_count} постов${it.last_parsed?' · '+it.last_parsed:' · не спарсен'}</div></div><div style="display:flex;gap:3px;flex-shrink:0"><button class="btn btn-sm" onclick="parseOne('${it.username}')">⬇️</button><button class="btn btn-sm" onclick="analyzeOne('${it.username}')">🧠</button><button class="btn btn-d btn-sm" onclick="removeAn(${it.id})">✕</button></div></div></div>`).join('')+'</div>';
+    document.getElementById('anChannels').innerHTML='<div class="g2">'+d.items.map(it=>`<div class="card" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:0"><div style="display:flex;justify-content:space-between;align-items:center;gap:6px"><div style="min-width:0"><b style="font-size:12px">@${it.username}</b><div style="font-size:10px;color:var(--t3)">${it.msg_count} постов${it.last_parsed?' · '+it.last_parsed:' · не спарсен'}</div></div><div style="display:flex;gap:3px;flex-shrink:0"><button class="btn btn-sm" onclick="parseOne('${it.username}')">⬇️</button><button class="btn btn-sm" onclick="analyzeOne('${it.username}')">🧠</button></div></div></div>`).join('')+'</div>';
     loadAnOverview();loadAnReports();
   }catch(e){console.error(e)}
 }
@@ -417,11 +415,6 @@ async function loadAnReports(){
   document.getElementById('anReports').innerHTML=d.reports.map(rp=>`<div class="card" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px"><div style="font-size:13px;font-weight:600;margin-bottom:6px">@${rp.username} <span style="font-size:10px;color:var(--t3);font-weight:400">${rp.msg_count} постов · ${rp.analyzed_at}</span></div><div style="font-size:11px;line-height:1.6"><div style="margin-bottom:4px"><span style="color:var(--org)">🎯 Боли/проблемы:</span> ${rp.problems||'—'}</div><div style="margin-bottom:4px"><span style="color:var(--grn)">📦 Продукты:</span> ${rp.products||'—'}</div><div style="margin-bottom:4px"><span style="color:var(--acc)">🗂 Темы:</span> ${rp.themes||'—'}</div>${(rp.top_posts||[]).length?'<div style="margin-top:4px;font-size:10px;color:var(--t3)">Топ: '+rp.top_posts.map(t=>`<a href="${t.link}" target="_blank" style="color:var(--acc)">${t.views}👁</a>`).join(' · ')+'</div>':''}</div></div>`).join('');
   }catch(e){}
 }
-async function addAnalysisChannels(){
-  const raw=document.getElementById('an_usernames').value.trim();if(!raw){showToast('Вставь usernames',false);return}
-  try{const r=await fetch('/api/admin/analysis/channels',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,usernames:raw})});const d=await r.json();if(d.ok){showToast(`Добавлено: ${d.added}`,true);document.getElementById('an_usernames').value='';loadAnalysis()}else{showToast('Ошибка',false)}}catch(e){showToast('Ошибка',false)}
-}
-async function removeAn(id){if(!confirm('Удалить канал и его данные анализа?'))return;try{const r=await fetch(`/api/admin/analysis/channels/${id}?token=${token}`,{method:'DELETE'});const d=await r.json();if(d.ok){showToast('Удалено',true);loadAnalysis()}}catch(e){}}
 function anProg(msg){const b=document.getElementById('anProgress');b.style.display='block';b.textContent=msg}
 async function parseOne(u){anProg(`⬇️ Парсю @${u}...`);try{const r=await fetch('/api/admin/analysis/parse',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,username:u})});const d=await r.json();anProg(d.ok?`✅ @${u}: +${d.stored} новых (всего ${d.total||0})`:`❌ @${u}: ${d.error||'ошибка'}`);loadAnalysis()}catch(e){anProg(`❌ @${u}: сеть`)}}
 async function parseAllAnalysis(){
