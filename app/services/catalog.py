@@ -75,16 +75,16 @@ async def get_seo_channels(db: AsyncSession, category: str = None) -> list[dict]
 # ---------- Seeds (run once on startup if tables empty) ----------
 
 _LB_SEED = [
-    ("Tier-1 Guest Posts", "guest_post", "DE,UK,FR,IT,ES,US,CA", "en,de,fr,it,es", 55, 80000, 120, "@seohub_lb", "", "Размещение на тематических Tier-1 сайтах казино/беттинг ниши. Белые анкоры, dofollow, индексация в течение 30 дней.", True),
-    ("Casino PBN Network", "pbn", "RU,UA,KZ,UZ,TR,BR", "ru,en,tr,pt", 35, 15000, 45, "@seohub_lb", "", "Приватная сетка из 200+ доменов под gambling. Полный контроль анкоров, разные ASN/IP, очищенные домены с историей.", True),
-    ("Crowd Boost", "crowd", "ALL", "ru,en", 0, 0, 15, "@seohub_lb", "", "Крауд-маркетинг: форумы, комментарии, Q&A. Естественный ссылочный профиль и трафиковые упоминания бренда.", False),
-    ("Outreach Pro", "outreach", "UK,US,CA,AU,DE,NL", "en,de", 50, 120000, 200, "@seohub_lb", "", "Ручной аутрич к реальным сайтам. Согласование анкоров и контента под ваш бренд, переговоры о цене напрямую с вебмастерами.", True),
-    ("LinkMarket iGaming", "marketplace", "DE,ES,IT,FR,PL,PT,GR", "en,de,es,it", 42, 40000, 60, "@seohub_lb", "", "Биржа площадок под iGaming с фильтром по DR, трафику, ГЕО и языку. Прозрачные метрики Ahrefs/Semrush.", False),
-    ("Link Swap Club", "exchange", "ALL", "ru,en", 30, 25000, 0, "@seohub_lb", "", "Обмен ссылками между проверенными SEO-командами. Трёхсторонние схемы (A→B→C→A), модерация качества.", False),
-    ("EU Casino Editorials", "guest_post", "DE,AT,CH,NL,BE", "de,nl", 48, 60000, 150, "@seohub_lb", "", "Редакционные статьи на немецкоязычных площадках. Высокий траст, подходит под YMYL-тематику.", True),
-    ("LatAm Traffic Links", "outreach", "BR,MX,CL,CO,AR,PE", "pt,es", 38, 90000, 70, "@seohub_lb", "", "Аутрич по латиноамериканскому рынку. Локальные новостники и спортивные порталы.", False),
-    ("Asia Tier Network", "pbn", "IN,BD,TH,JP,KR,PH", "en", 32, 30000, 40, "@seohub_lb", "", "Сетка под азиатские ГЕО. Особенно сильно по IN/BD беттингу.", False),
-    ("Sports Niche Outreach", "outreach", "UK,US,DE,IT,ES,BR", "en,de,it,es,pt", 52, 150000, 180, "@seohub_lb", "", "Спортивные и беттинговые порталы. Идеально под прематч/лайв-ставки.", True),
+    ("Tier-1 Guest Posts", "guest_post", "DE,UK,FR,IT,ES,US,CA", "en,de,fr,it,es", 55, 80000, 120, "@bdmseo", "", "Размещение на тематических Tier-1 сайтах казино/беттинг ниши. Белые анкоры, dofollow, индексация в течение 30 дней.", True),
+    ("Casino PBN Network", "pbn", "RU,UA,KZ,UZ,TR,BR", "ru,en,tr,pt", 35, 15000, 45, "@bdmseo", "", "Приватная сетка из 200+ доменов под gambling. Полный контроль анкоров, разные ASN/IP, очищенные домены с историей.", True),
+    ("Crowd Boost", "crowd", "ALL", "ru,en", 0, 0, 15, "@bdmseo", "", "Крауд-маркетинг: форумы, комментарии, Q&A. Естественный ссылочный профиль и трафиковые упоминания бренда.", False),
+    ("Outreach Pro", "outreach", "UK,US,CA,AU,DE,NL", "en,de", 50, 120000, 200, "@bdmseo", "", "Ручной аутрич к реальным сайтам. Согласование анкоров и контента под ваш бренд, переговоры о цене напрямую с вебмастерами.", True),
+    ("LinkMarket iGaming", "marketplace", "DE,ES,IT,FR,PL,PT,GR", "en,de,es,it", 42, 40000, 60, "@bdmseo", "", "Биржа площадок под iGaming с фильтром по DR, трафику, ГЕО и языку. Прозрачные метрики Ahrefs/Semrush.", False),
+    ("Link Swap Club", "exchange", "ALL", "ru,en", 30, 25000, 0, "@bdmseo", "", "Обмен ссылками между проверенными SEO-командами. Трёхсторонние схемы (A→B→C→A), модерация качества.", False),
+    ("EU Casino Editorials", "guest_post", "DE,AT,CH,NL,BE", "de,nl", 48, 60000, 150, "@bdmseo", "", "Редакционные статьи на немецкоязычных площадках. Высокий траст, подходит под YMYL-тематику.", True),
+    ("LatAm Traffic Links", "outreach", "BR,MX,CL,CO,AR,PE", "pt,es", 38, 90000, 70, "@bdmseo", "", "Аутрич по латиноамериканскому рынку. Локальные новостники и спортивные порталы.", False),
+    ("Asia Tier Network", "pbn", "IN,BD,TH,JP,KR,PH", "en", 32, 30000, 40, "@bdmseo", "", "Сетка под азиатские ГЕО. Особенно сильно по IN/BD беттингу.", False),
+    ("Sports Niche Outreach", "outreach", "UK,US,DE,IT,ES,BR", "en,de,it,es,pt", 52, 150000, 180, "@bdmseo", "", "Спортивные и беттинговые порталы. Идеально под прематч/лайв-ставки.", True),
 ]
 
 _CH_SEED = [
@@ -100,6 +100,18 @@ _CH_SEED = [
 
 
 async def seed_catalogs(db: AsyncSession):
+    # Migrate any legacy contact handle to current one (idempotent)
+    try:
+        from sqlalchemy import update
+        await db.execute(
+            update(LinkbuildingService)
+            .where(LinkbuildingService.contact == "@seohub_lb")
+            .values(contact="@bdmseo")
+        )
+        await db.commit()
+    except Exception as e:
+        logger.warning(f"Contact migration skipped: {e}")
+
     # Linkbuilding
     cnt = (await db.execute(select(func.count(LinkbuildingService.id)))).scalar() or 0
     if cnt == 0:

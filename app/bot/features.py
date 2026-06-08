@@ -584,7 +584,7 @@ async def cb_analyze_reject(callback: CallbackQuery):
     try:
         await bot.send_message(
             pending["chat_id"],
-            "❌ Заявка на анализ отклонена. Попробуй позже или свяжись с @EgorGCyprus."
+            "❌ Заявка на анализ отклонена. Попробуй позже или свяжись с @bdmseo."
         )
     except Exception:
         pass
