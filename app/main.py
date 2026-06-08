@@ -655,6 +655,22 @@ async def admin_analysis_parse(request: Request):
     return res
 
 
+@app.post("/api/admin/analysis/parse-batch")
+async def admin_analysis_parse_batch(request: Request):
+    data = await request.json()
+    if not _check_admin_token(data.get("token", "")):
+        return {"ok": False}
+    usernames = data.get("usernames", []) or []
+    if not usernames:
+        return {"ok": False, "error": "usernames required"}
+    from app.services.content_analysis import parse_channels_batch
+    async with async_session() as db:
+        res = await parse_channels_batch(db, usernames,
+                                         limit=int(data.get("limit", 80)),
+                                         days_back=int(data.get("days_back", 120)))
+    return res
+
+
 @app.get("/api/admin/analysis/overview")
 async def admin_analysis_overview(token: str = ""):
     if not _check_admin_token(token):

@@ -124,6 +124,7 @@ async def fetch_channel_history(client, username: str, limit: int = 80, days_bac
     cutoff = datetime.now(timezone.utc) - timedelta(days=days_back)
     uname = (username or "").lstrip("@").strip()
     out = []
+    from telethon.errors import FloodWaitError
     try:
         entity = await client.get_entity(uname)
         title = getattr(entity, "title", uname)
@@ -147,6 +148,8 @@ async def fetch_channel_history(client, username: str, limit: int = 80, days_bac
                 "reactions": reactions,
                 "link": f"https://t.me/{uname}/{m.id}",
             })
+    except FloodWaitError:
+        raise  # let caller pause/stop the batch
     except Exception as e:
         logger.error(f"History fetch failed for {uname}: {e}")
         return []

@@ -72,19 +72,7 @@ async def list_channels(db: AsyncSession) -> list[dict]:
     return out
 
 
-async def parse_channel(db: AsyncSession, username: str, limit: int = 80, days_back: int = 120) -> dict:
-    """Fetch a channel's history via Telethon and upsert into channel_messages."""
-    from app.services.parser import get_telethon_client, fetch_channel_history
-    client = await get_telethon_client()
-    if not client:
-        return {"ok": False, "error": "telethon not configured"}
-    try:
-        msgs = await fetch_channel_history(client, username, limit=limit, days_back=days_back)
-    finally:
-        await client.disconnect()
-    if not msgs:
-        return {"ok": True, "fetched": 0, "stored": 0, "total": 0}
-    uname = msgs[0]["channel_username"]
+async def _upsert_messages(db: AsyncSession, uname: str, msgs: list[dict]) -> int:
     existing = {r[0] for r in (await db.execute(
         select(ChannelMessage.message_id).where(ChannelMessage.channel_username == uname)
     )).all()}
@@ -104,10 +92,69 @@ async def parse_channel(db: AsyncSession, username: str, limit: int = 80, days_b
         ))
         stored += 1
     await db.commit()
+    return stored
+
+
+async def parse_channel(db: AsyncSession, username: str, limit: int = 80, days_back: int = 120) -> dict:
+    """Fetch a single channel's history via Telethon and upsert into channel_messages."""
+    from app.services.parser import get_telethon_client, fetch_channel_history
+    client = await get_telethon_client()
+    if not client:
+        return {"ok": False, "error": "telethon not configured"}
+    try:
+        msgs = await fetch_channel_history(client, username, limit=limit, days_back=days_back)
+    except Exception as e:
+        return {"ok": False, "error": type(e).__name__}
+    finally:
+        await client.disconnect()
+    uname = (username or "").lstrip("@").strip()
+    stored = await _upsert_messages(db, uname, msgs) if msgs else 0
     total = (await db.execute(
         select(func.count(ChannelMessage.id)).where(ChannelMessage.channel_username == uname)
     )).scalar() or 0
     return {"ok": True, "channel": uname, "fetched": len(msgs), "stored": stored, "total": total}
+
+
+async def parse_channels_batch(db: AsyncSession, usernames: list[str], limit: int = 80, days_back: int = 120) -> dict:
+    """Parse a batch of channels over ONE Telethon connection, throttled, flood-aware."""
+    import asyncio
+    from app.services.parser import get_telethon_client, fetch_channel_history
+    from telethon.errors import FloodWaitError
+    client = await get_telethon_client()
+    if not client:
+        return {"ok": False, "error": "telethon not configured"}
+    results, flood = [], False
+    try:
+        for u in usernames:
+            uname = (u or "").lstrip("@").strip()
+            if not uname:
+                continue
+            try:
+                msgs = await fetch_channel_history(client, uname, limit=limit, days_back=days_back)
+            except FloodWaitError as e:
+                wait = int(getattr(e, "seconds", 0) or 0)
+                if 0 < wait <= 20:
+                    await asyncio.sleep(wait + 1)
+                    try:
+                        msgs = await fetch_channel_history(client, uname, limit=limit, days_back=days_back)
+                    except Exception:
+                        results.append({"username": uname, "stored": 0, "total": 0, "status": "flood"})
+                        flood = True
+                        break
+                else:
+                    results.append({"username": uname, "stored": 0, "total": 0, "status": "flood"})
+                    flood = True
+                    break
+            stored = await _upsert_messages(db, uname, msgs) if msgs else 0
+            total = (await db.execute(
+                select(func.count(ChannelMessage.id)).where(ChannelMessage.channel_username == uname)
+            )).scalar() or 0
+            results.append({"username": uname, "stored": stored, "total": total,
+                            "status": "ok" if msgs else "empty"})
+            await asyncio.sleep(2)
+    finally:
+        await client.disconnect()
+    return {"ok": True, "results": results, "flood": flood}
 
 
 async def get_overview(db: AsyncSession) -> dict:
