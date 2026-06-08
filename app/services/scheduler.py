@@ -72,25 +72,23 @@ async def job_send_daily_digest():
 
 
 async def job_weekly_digest():
-    """Generate weekly digest on Fridays at 18:00."""
-    logger.info("Starting weekly digest job")
+    """Friday 18:00 — remind admin to assemble the weekly digest (manual post selection)."""
+    logger.info("Starting weekly digest reminder job")
     async with async_session() as db:
         posts = await digest.get_week_posts(db)
-        if not posts:
-            logger.info("No posts for weekly digest")
-            return
-        posts_text = "\n\n---\n\n".join(
-            [f"[{p.category}] {p.summary}" for p in posts if p.summary]
-        )
-        summary = await ai.generate_weekly_summary(posts_text)
-        if summary:
-            weekly = await digest.save_weekly_digest(
-                db, summary, [p.id for p in posts]
-            )
-            settings = get_settings()
-            if settings.admin_chat_id:
-                from app.bot.main import send_weekly_digest_approval
-                await send_weekly_digest_approval(weekly, posts)
+    from app.bot.main import notify_admin
+    if not posts:
+        logger.info("No published posts this week")
+        return
+    text = (
+        f"📅 <b>Пора собрать недельный дайджест</b>\n\n"
+        f"За неделю опубликовано постов: <b>{len(posts)}</b>\n\n"
+        f"Открой админку → вкладка «Недельный дайджест», "
+        f"отметь нужные посты и опубликуй:\n"
+        f"https://seohub-production.up.railway.app/admin"
+    )
+    await notify_admin(text)
+    logger.info(f"Weekly digest reminder sent ({len(posts)} posts available)")
 
 
 async def job_check_links():

@@ -72,6 +72,9 @@ td input.geo-input{width:50px;text-align:center;text-transform:uppercase}
     <div class="nav">
       <button class="nav-btn on" onclick="showPage('analytics',this)">Аналитика</button>
       <button class="nav-btn" onclick="showPage('rates',this)">Ставки CPA</button>
+      <button class="nav-btn" onclick="showPage('lb',this)">Линкбилдинг</button>
+      <button class="nav-btn" onclick="showPage('channels',this)">SEO-каналы</button>
+      <button class="nav-btn" onclick="showPage('weekly',this)">Недельный дайджест</button>
     </div>
 
     <!-- Analytics Page -->
@@ -115,6 +118,70 @@ td input.geo-input{width:50px;text-align:center;text-transform:uppercase}
         <button class="btn btn-p btn-sm" onclick="addRate()">Добавить</button>
       </div>
     </div>
+
+    <!-- Linkbuilding Page -->
+    <div class="page" id="pg-lb">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="section-title" style="margin:0">Каталог линкбилдинга (<span id="lbCount">0</span>)</div>
+        <button class="btn" onclick="loadLBAdmin()">Обновить</button>
+      </div>
+      <div id="lbAdminList"></div>
+      <div class="section" style="margin-top:16px">
+        <div class="section-title">Добавить услугу</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">
+          <input id="nlb_name" placeholder="Название">
+          <select id="nlb_type"><option value="guest_post">Гостевые посты</option><option value="pbn">PBN / сетки</option><option value="crowd">Крауд</option><option value="outreach">Outreach</option><option value="marketplace">Биржа</option><option value="exchange">Обмен</option></select>
+          <input id="nlb_geos" placeholder="ГЕО (DE,UK,BR)">
+          <input id="nlb_languages" placeholder="Языки (en,de)">
+          <input id="nlb_dr" type="number" placeholder="DR">
+          <input id="nlb_traffic" type="number" placeholder="Трафик/мес">
+          <input id="nlb_price" type="number" placeholder="Цена от $">
+          <input id="nlb_contact" placeholder="Контакт @">
+          <input id="nlb_url" placeholder="URL" style="grid-column:1/3">
+          <textarea id="nlb_desc" placeholder="Описание" style="grid-column:1/3"></textarea>
+        </div>
+        <label style="font-size:11px;color:var(--t2)"><input type="checkbox" id="nlb_verified"> Проверено</label>
+        <button class="btn btn-p btn-sm" style="margin-left:8px" onclick="addLB()">Добавить</button>
+      </div>
+    </div>
+
+    <!-- SEO Channels Page -->
+    <div class="page" id="pg-channels">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="section-title" style="margin:0">Каталог SEO-каналов (<span id="chCount">0</span>)</div>
+        <button class="btn" onclick="loadChAdmin()">Обновить</button>
+      </div>
+      <div id="chAdminList"></div>
+      <div class="section" style="margin-top:16px">
+        <div class="section-title">Добавить канал</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">
+          <input id="nch_name" placeholder="Название">
+          <input id="nch_username" placeholder="username (без @)">
+          <select id="nch_category"><option value="seo">SEO</option><option value="gambling">Gambling</option><option value="traffic">Трафик</option><option value="news">Новости</option><option value="cases">Кейсы</option><option value="tools">Инструменты</option><option value="am">AM / ПП</option></select>
+          <input id="nch_subscribers" type="number" placeholder="Подписчиков">
+          <textarea id="nch_desc" placeholder="Описание" style="grid-column:1/3"></textarea>
+        </div>
+        <button class="btn btn-p btn-sm" onclick="addCh()">Добавить</button>
+      </div>
+    </div>
+
+    <!-- Weekly Digest Page -->
+    <div class="page" id="pg-weekly">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div class="section-title" style="margin:0">Посты за неделю (<span id="wkCount">0</span>) — отметь нужные</div>
+        <button class="btn" onclick="loadWeekly()">Обновить</button>
+      </div>
+      <div id="wkList"></div>
+      <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
+        <button class="btn btn-p" onclick="genWeekly()">Сформировать дайджест</button>
+        <span id="wkSelInfo" style="font-size:11px;color:var(--t2)"></span>
+      </div>
+      <div class="section" id="wkPreviewWrap" style="display:none;margin-top:16px">
+        <div class="section-title">Превью дайджеста</div>
+        <div id="wkPreview" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px;white-space:pre-wrap;line-height:1.6"></div>
+        <button class="btn btn-p" style="margin-top:10px" onclick="publishWeekly()">Опубликовать в канал</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -125,7 +192,7 @@ let token='',currentDays=1,ratesCount=0;
 
 function showToast(msg,ok){const t=document.getElementById('toast');t.textContent=msg;t.className='toast '+(ok?'ok':'err');t.style.display='block';setTimeout(()=>t.style.display='none',2000)}
 
-function showPage(name,el){document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('on'));el.classList.add('on');document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));document.getElementById('pg-'+name).classList.add('on');if(name==='rates')loadRates();if(name==='analytics')loadStats()}
+function showPage(name,el){document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('on'));el.classList.add('on');document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));document.getElementById('pg-'+name).classList.add('on');if(name==='rates')loadRates();if(name==='analytics')loadStats();if(name==='lb')loadLBAdmin();if(name==='channels')loadChAdmin();if(name==='weekly')loadWeekly()}
 
 async function doLogin(){
   const user=document.getElementById('loginUser').value,pass=document.getElementById('loginPass').value;
@@ -177,6 +244,63 @@ async function addRate(){
   try{const r=await fetch('/api/admin/rates',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,geo,min:mn,avg,max:mx})});const d=await r.json();
   if(d.ok){showToast('Добавлено',true);document.getElementById('addGeo').value='';document.getElementById('addMin').value='';document.getElementById('addAvg').value='';document.getElementById('addMax').value='';loadRates()}else{showToast('Ошибка',false)}
   }catch(e){showToast('Ошибка',false)}
+}
+
+// ===== Linkbuilding admin =====
+const LB_TYPES={guest_post:'Гостевые',pbn:'PBN',crowd:'Крауд',outreach:'Outreach',marketplace:'Биржа',exchange:'Обмен'};
+async function loadLBAdmin(){
+  try{const r=await fetch(`/api/admin/linkbuilding?token=${token}`);const d=await r.json();if(!d.ok)return;
+  document.getElementById('lbCount').textContent=d.items.length;
+  document.getElementById('lbAdminList').innerHTML=d.items.map(it=>`<div class="card" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:6px"><div style="display:flex;justify-content:space-between;align-items:center"><div><b>${it.verified?'✅ ':''}${it.name}</b> <span style="color:var(--t3);font-size:11px">${LB_TYPES[it.type]||it.type}</span><div style="font-size:11px;color:var(--t2)">${it.geos||''} ${it.dr?'· DR'+it.dr:''} ${it.price_from?'· от $'+Math.round(it.price_from):''} ${it.is_active?'':'· ❌ скрыт'}</div></div><div style="display:flex;gap:4px"><button class="btn btn-sm" onclick="toggleLB(${it.id},${it.is_active?0:1})">${it.is_active?'Скрыть':'Показать'}</button><button class="btn btn-d btn-sm" onclick="delLB(${it.id})">✕</button></div></div></div>`).join('');
+  }catch(e){console.error(e)}
+}
+async function addLB(){
+  const body={token,name:document.getElementById('nlb_name').value.trim(),type:document.getElementById('nlb_type').value,geos:document.getElementById('nlb_geos').value.trim(),languages:document.getElementById('nlb_languages').value.trim(),dr:document.getElementById('nlb_dr').value,traffic:document.getElementById('nlb_traffic').value,price_from:document.getElementById('nlb_price').value,contact:document.getElementById('nlb_contact').value.trim(),url:document.getElementById('nlb_url').value.trim(),description:document.getElementById('nlb_desc').value.trim(),verified:document.getElementById('nlb_verified').checked};
+  if(!body.name){showToast('Укажи название',false);return}
+  try{const r=await fetch('/api/admin/linkbuilding',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json();if(d.ok){showToast('Добавлено',true);['nlb_name','nlb_geos','nlb_languages','nlb_dr','nlb_traffic','nlb_price','nlb_contact','nlb_url','nlb_desc'].forEach(i=>document.getElementById(i).value='');document.getElementById('nlb_verified').checked=false;loadLBAdmin()}else{showToast('Ошибка',false)}}catch(e){showToast('Ошибка',false)}
+}
+async function toggleLB(id,active){try{const r=await fetch(`/api/admin/linkbuilding/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,is_active:!!active})});const d=await r.json();if(d.ok){loadLBAdmin()}}catch(e){}}
+async function delLB(id){if(!confirm('Удалить услугу?'))return;try{const r=await fetch(`/api/admin/linkbuilding/${id}?token=${token}`,{method:'DELETE'});const d=await r.json();if(d.ok){showToast('Удалено',true);loadLBAdmin()}}catch(e){}}
+
+// ===== SEO channels admin =====
+const CH_CATS={seo:'SEO',gambling:'Gambling',traffic:'Трафик',news:'Новости',cases:'Кейсы',tools:'Инструменты',am:'AM/ПП'};
+async function loadChAdmin(){
+  try{const r=await fetch(`/api/admin/channels?token=${token}`);const d=await r.json();if(!d.ok)return;
+  document.getElementById('chCount').textContent=d.items.length;
+  document.getElementById('chAdminList').innerHTML=d.items.map(it=>`<div class="card" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:6px"><div style="display:flex;justify-content:space-between;align-items:center"><div><b>${it.name}</b> <span style="color:var(--t3);font-size:11px">${CH_CATS[it.category]||it.category}${it.username?' · @'+it.username:''}${it.subscribers?' · '+it.subscribers:''}</span>${it.is_active?'':' <span style="color:var(--red);font-size:11px">скрыт</span>'}</div><div style="display:flex;gap:4px"><button class="btn btn-sm" onclick="toggleCh(${it.id},${it.is_active?0:1})">${it.is_active?'Скрыть':'Показать'}</button><button class="btn btn-d btn-sm" onclick="delCh(${it.id})">✕</button></div></div></div>`).join('');
+  }catch(e){console.error(e)}
+}
+async function addCh(){
+  const body={token,name:document.getElementById('nch_name').value.trim(),username:document.getElementById('nch_username').value.trim(),category:document.getElementById('nch_category').value,subscribers:document.getElementById('nch_subscribers').value,description:document.getElementById('nch_desc').value.trim()};
+  if(!body.name){showToast('Укажи название',false);return}
+  try{const r=await fetch('/api/admin/channels',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json();if(d.ok){showToast('Добавлено',true);['nch_name','nch_username','nch_subscribers','nch_desc'].forEach(i=>document.getElementById(i).value='');loadChAdmin()}else{showToast('Ошибка',false)}}catch(e){showToast('Ошибка',false)}
+}
+async function toggleCh(id,active){try{const r=await fetch(`/api/admin/channels/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,is_active:!!active})});const d=await r.json();if(d.ok){loadChAdmin()}}catch(e){}}
+async function delCh(id){if(!confirm('Удалить канал?'))return;try{const r=await fetch(`/api/admin/channels/${id}?token=${token}`,{method:'DELETE'});const d=await r.json();if(d.ok){showToast('Удалено',true);loadChAdmin()}}catch(e){}}
+
+// ===== Weekly digest =====
+let wkWeeklyId=0;
+async function loadWeekly(){
+  try{const r=await fetch(`/api/admin/weekly/posts?token=${token}`);const d=await r.json();if(!d.ok)return;
+  document.getElementById('wkCount').textContent=d.posts.length;
+  document.getElementById('wkPreviewWrap').style.display='none';wkWeeklyId=0;
+  if(!d.posts.length){document.getElementById('wkList').innerHTML='<p style="color:var(--t2);font-size:12px">За неделю нет опубликованных постов.</p>';return}
+  document.getElementById('wkList').innerHTML=d.posts.map(p=>`<label class="card" style="display:flex;gap:8px;align-items:flex-start;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer"><input type="checkbox" class="wk-cb" value="${p.id}" checked onchange="updWkInfo()" style="margin-top:3px"><div><div style="font-size:12px;font-weight:600">${p.summary||''}</div><div style="font-size:10px;color:var(--t3);margin-top:2px">${p.channel||''} ${p.category?'· '+p.category:''} ${p.score?'· '+p.score.toFixed(1):''} ${p.published_at?'· '+p.published_at:''}</div></div></label>`).join('');
+  updWkInfo();
+  }catch(e){console.error(e)}
+}
+function selectedWkIds(){return [...document.querySelectorAll('.wk-cb:checked')].map(c=>parseInt(c.value))}
+function updWkInfo(){document.getElementById('wkSelInfo').textContent='Выбрано: '+selectedWkIds().length}
+async function genWeekly(){
+  const ids=selectedWkIds();if(!ids.length){showToast('Выбери хотя бы один пост',false);return}
+  showToast('Генерирую...',true);
+  try{const r=await fetch('/api/admin/weekly/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,post_ids:ids})});const d=await r.json();
+  if(d.ok){wkWeeklyId=d.weekly_id;document.getElementById('wkPreview').textContent=(d.preview||d.summary||'').replace(/<[^>]+>/g,'');document.getElementById('wkPreviewWrap').style.display='block';showToast('Готово',true)}else{showToast(d.error||'Ошибка',false)}}catch(e){showToast('Ошибка',false)}
+}
+async function publishWeekly(){
+  if(!wkWeeklyId){showToast('Сначала сформируй дайджест',false);return}
+  if(!confirm('Опубликовать дайджест в канал?'))return;
+  try{const r=await fetch('/api/admin/weekly/publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,weekly_id:wkWeeklyId})});const d=await r.json();if(d.ok){showToast('Опубликовано!',true);document.getElementById('wkPreviewWrap').style.display='none';loadWeekly()}else{showToast(d.error||'Ошибка',false)}}catch(e){showToast('Ошибка',false)}
 }
 
 document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});

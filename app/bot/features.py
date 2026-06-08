@@ -588,3 +588,49 @@ async def cb_analyze_reject(callback: CallbackQuery):
         )
     except Exception:
         pass
+
+
+# === Catalog commands: /linkbuilding and /channels ===
+
+@router.message(Command("linkbuilding"))
+async def cmd_linkbuilding(message: Message):
+    from app.services.catalog import get_linkbuilding, LB_TYPES
+    async with async_session() as db:
+        items = await get_linkbuilding(db)
+    if not items:
+        await message.answer("Каталог линкбилдинга пока пуст.")
+        return
+    lines = ["🔗 <b>Каталог линкбилдинга</b>\n"]
+    for it in items[:15]:
+        badge = "✅ " if it["verified"] else ""
+        metrics = []
+        if it.get("dr"):
+            metrics.append(f"DR{it['dr']}")
+        if it.get("price_from"):
+            metrics.append(f"от ${int(it['price_from'])}")
+        meta = " · ".join(metrics)
+        geos = it.get("geos") or ""
+        lines.append(
+            f"{badge}<b>{it['name']}</b> — {it['type_label']}\n"
+            f"{('🌍 ' + geos) if geos else ''}{('  ' + meta) if meta else ''}"
+        )
+    lines.append("\nВесь каталог с фильтрами: https://seohub-production.up.railway.app/#lb")
+    await message.answer("\n".join(lines), disable_web_page_preview=True)
+
+
+@router.message(Command("channels"))
+async def cmd_channels(message: Message):
+    from app.services.catalog import get_seo_channels
+    async with async_session() as db:
+        items = await get_seo_channels(db)
+    if not items:
+        await message.answer("Каталог каналов пока пуст.")
+        return
+    lines = ["📡 <b>Каталог SEO-каналов</b>\n"]
+    for it in items[:25]:
+        subs = f" · {it['subscribers']//1000}k" if it.get("subscribers") else ""
+        link = it.get("url") or (f"https://t.me/{it['username']}" if it.get("username") else "")
+        name = f"<a href='{link}'>{it['name']}</a>" if link else it["name"]
+        lines.append(f"• {name} — {it['category_label']}{subs}")
+    lines.append("\nВесь каталог: https://seohub-production.up.railway.app/#channels")
+    await message.answer("\n".join(lines), disable_web_page_preview=True)

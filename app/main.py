@@ -22,6 +22,13 @@ dp = create_dispatcher()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    # Seed catalogs (linkbuilding + SEO channels) if empty
+    try:
+        from app.services.catalog import seed_catalogs
+        async with async_session() as db:
+            await seed_catalogs(db)
+    except Exception as e:
+        logger.error(f"Catalog seed failed: {e}")
     bot = get_bot()
     settings = get_settings()
 
@@ -32,6 +39,8 @@ async def lifespan(app: FastAPI):
         BotCommand(command="rates", description="Ставки по ГЕО (DE, Германия...)"),
         BotCommand(command="cpa", description="Все CPA ставки"),
         BotCommand(command="check", description="Проверка ссылки — цепочка редиректов"),
+        BotCommand(command="linkbuilding", description="Каталог линкбилдинга"),
+        BotCommand(command="channels", description="Каталог SEO-каналов"),
         BotCommand(command="addlink", description="Добавить ссылку на мониторинг"),
         BotCommand(command="mylinks", description="Мои ссылки"),
         BotCommand(command="deletelink", description="Удалить ссылку"),
@@ -243,4 +252,244 @@ async def admin_delete_rate(rate_id: int, token: str = ""):
             return {"ok": False, "error": "not found"}
         await db.delete(rate)
         await db.commit()
+    return {"ok": True}
+
+
+# ============ ADMIN: Linkbuilding catalog ============
+
+@app.get("/api/admin/linkbuilding")
+async def admin_get_lb(token: str = ""):
+    if not _check_admin_token(token):
+        return {"ok": False}
+    from app.models.features import LinkbuildingService
+    from sqlalchemy import select
+    async with async_session() as db:
+        rows = (await db.execute(
+            select(LinkbuildingService).order_by(LinkbuildingService.id.desc())
+        )).scalars().all()
+    return {"ok": True, "items": [
+        {"id": r.id, "name": r.name, "type": r.type, "geos": r.geos,
+         "languages": r.languages, "dr": r.dr, "traffic": r.traffic,
+         "price_from": r.price_from, "contact": r.contact, "url": r.url,
+         "description": r.description, "verified": r.verified, "is_active": r.is_active}
+        for r in rows
+    ]}
+
+
+@app.post("/api/admin/linkbuilding")
+async def admin_add_lb(request: Request):
+    data = await request.json()
+    if not _check_admin_token(data.get("token", "")):
+        return {"ok": False}
+    from app.models.features import LinkbuildingService
+    def _i(v):
+        try: return int(v)
+        except: return None
+    def _f(v):
+        try: return float(v)
+        except: return None
+    async with async_session() as db:
+        item = LinkbuildingService(
+            name=data.get("name", "").strip(), type=data.get("type", "guest_post"),
+            geos=data.get("geos", ""), languages=data.get("languages", ""),
+            dr=_i(data.get("dr")), traffic=_i(data.get("traffic")),
+            price_from=_f(data.get("price_from")), contact=data.get("contact", ""),
+            url=data.get("url", ""), description=data.get("description", ""),
+            verified=bool(data.get("verified", False)), is_active=True,
+        )
+        db.add(item)
+        await db.commit()
+        await db.refresh(item)
+    return {"ok": True, "id": item.id}
+
+
+@app.put("/api/admin/linkbuilding/{item_id}")
+async def admin_update_lb(item_id: int, request: Request):
+    data = await request.json()
+    if not _check_admin_token(data.get("token", "")):
+        return {"ok": False}
+    from app.models.features import LinkbuildingService
+    from sqlalchemy import select
+    async with async_session() as db:
+        item = (await db.execute(select(LinkbuildingService).where(LinkbuildingService.id == item_id))).scalar_one_or_none()
+        if not item:
+            return {"ok": False, "error": "not found"}
+        for f in ("name", "type", "geos", "languages", "contact", "url", "description"):
+            if f in data: setattr(item, f, data[f])
+        if "dr" in data:
+            try: item.dr = int(data["dr"])
+            except: pass
+        if "traffic" in data:
+            try: item.traffic = int(data["traffic"])
+            except: pass
+        if "price_from" in data:
+            try: item.price_from = float(data["price_from"])
+            except: pass
+        if "verified" in data: item.verified = bool(data["verified"])
+        if "is_active" in data: item.is_active = bool(data["is_active"])
+        await db.commit()
+    return {"ok": True}
+
+
+@app.delete("/api/admin/linkbuilding/{item_id}")
+async def admin_delete_lb(item_id: int, token: str = ""):
+    if not _check_admin_token(token):
+        return {"ok": False}
+    from app.models.features import LinkbuildingService
+    from sqlalchemy import select
+    async with async_session() as db:
+        item = (await db.execute(select(LinkbuildingService).where(LinkbuildingService.id == item_id))).scalar_one_or_none()
+        if not item:
+            return {"ok": False, "error": "not found"}
+        await db.delete(item)
+        await db.commit()
+    return {"ok": True}
+
+
+# ============ ADMIN: SEO channels catalog ============
+
+@app.get("/api/admin/channels")
+async def admin_get_channels(token: str = ""):
+    if not _check_admin_token(token):
+        return {"ok": False}
+    from app.models.features import SeoChannelCatalog
+    from sqlalchemy import select
+    async with async_session() as db:
+        rows = (await db.execute(
+            select(SeoChannelCatalog).order_by(SeoChannelCatalog.id.desc())
+        )).scalars().all()
+    return {"ok": True, "items": [
+        {"id": r.id, "name": r.name, "username": r.username, "url": r.url,
+         "category": r.category, "language": r.language, "subscribers": r.subscribers,
+         "description": r.description, "is_active": r.is_active}
+        for r in rows
+    ]}
+
+
+@app.post("/api/admin/channels")
+async def admin_add_channel(request: Request):
+    data = await request.json()
+    if not _check_admin_token(data.get("token", "")):
+        return {"ok": False}
+    from app.models.features import SeoChannelCatalog
+    uname = (data.get("username", "") or "").lstrip("@").strip()
+    def _i(v):
+        try: return int(v)
+        except: return None
+    async with async_session() as db:
+        item = SeoChannelCatalog(
+            name=data.get("name", "").strip(), username=uname,
+            url=data.get("url", "") or (f"https://t.me/{uname}" if uname else ""),
+            category=data.get("category", "seo"), language=data.get("language", "ru"),
+            subscribers=_i(data.get("subscribers")), description=data.get("description", ""),
+            is_active=True,
+        )
+        db.add(item)
+        await db.commit()
+        await db.refresh(item)
+    return {"ok": True, "id": item.id}
+
+
+@app.put("/api/admin/channels/{item_id}")
+async def admin_update_channel(item_id: int, request: Request):
+    data = await request.json()
+    if not _check_admin_token(data.get("token", "")):
+        return {"ok": False}
+    from app.models.features import SeoChannelCatalog
+    from sqlalchemy import select
+    async with async_session() as db:
+        item = (await db.execute(select(SeoChannelCatalog).where(SeoChannelCatalog.id == item_id))).scalar_one_or_none()
+        if not item:
+            return {"ok": False, "error": "not found"}
+        for f in ("name", "category", "language", "description", "url"):
+            if f in data: setattr(item, f, data[f])
+        if "username" in data:
+            item.username = (data["username"] or "").lstrip("@").strip()
+        if "subscribers" in data:
+            try: item.subscribers = int(data["subscribers"])
+            except: pass
+        if "is_active" in data: item.is_active = bool(data["is_active"])
+        await db.commit()
+    return {"ok": True}
+
+
+@app.delete("/api/admin/channels/{item_id}")
+async def admin_delete_channel(item_id: int, token: str = ""):
+    if not _check_admin_token(token):
+        return {"ok": False}
+    from app.models.features import SeoChannelCatalog
+    from sqlalchemy import select
+    async with async_session() as db:
+        item = (await db.execute(select(SeoChannelCatalog).where(SeoChannelCatalog.id == item_id))).scalar_one_or_none()
+        if not item:
+            return {"ok": False, "error": "not found"}
+        await db.delete(item)
+        await db.commit()
+    return {"ok": True}
+
+
+# ============ ADMIN: Weekly digest (post selection) ============
+
+@app.get("/api/admin/weekly/posts")
+async def admin_weekly_posts(token: str = ""):
+    if not _check_admin_token(token):
+        return {"ok": False}
+    from app.services.digest import get_week_posts, _source_link
+    async with async_session() as db:
+        posts = await get_week_posts(db)
+    return {"ok": True, "posts": [
+        {"id": p.id, "summary": p.summary or (p.original_text or "")[:120],
+         "category": p.category, "score": p.importance_score,
+         "channel": p.channel_name or p.channel_username,
+         "source": _source_link(p),
+         "published_at": p.published_at.strftime("%d.%m %H:%M") if p.published_at else ""}
+        for p in posts
+    ]}
+
+
+@app.post("/api/admin/weekly/generate")
+async def admin_weekly_generate(request: Request):
+    data = await request.json()
+    if not _check_admin_token(data.get("token", "")):
+        return {"ok": False}
+    post_ids = [int(x) for x in data.get("post_ids", [])]
+    if not post_ids:
+        return {"ok": False, "error": "Не выбрано ни одного поста"}
+    from app.services.digest import get_posts_by_ids, save_weekly_digest, format_weekly_digest
+    from app.services import ai
+    async with async_session() as db:
+        posts = await get_posts_by_ids(db, post_ids)
+        if not posts:
+            return {"ok": False, "error": "Посты не найдены"}
+        posts_text = "\n\n---\n\n".join(
+            [f"[{p.category}] {p.summary or p.original_text[:300]}" for p in posts]
+        )
+        summary = await ai.generate_weekly_summary(posts_text)
+        if not summary:
+            summary = "Итоги недели по выбранным постам."
+        weekly = await save_weekly_digest(db, summary, [p.id for p in posts])
+        preview = format_weekly_digest(summary, posts)
+    return {"ok": True, "weekly_id": weekly.id, "summary": summary, "preview": preview}
+
+
+@app.post("/api/admin/weekly/publish")
+async def admin_weekly_publish(request: Request):
+    data = await request.json()
+    if not _check_admin_token(data.get("token", "")):
+        return {"ok": False}
+    weekly_id = int(data.get("weekly_id", 0))
+    from app.services.digest import get_weekly_by_id, get_posts_by_ids, format_weekly_digest, mark_weekly_published
+    from app.bot.main import get_bot
+    from aiogram.enums import ParseMode
+    settings = get_settings()
+    async with async_session() as db:
+        weekly = await get_weekly_by_id(db, weekly_id)
+        if not weekly:
+            return {"ok": False, "error": "not found"}
+        posts = await get_posts_by_ids(db, weekly.post_ids or [])
+        text = format_weekly_digest(weekly.summary, posts)
+        if settings.channel_id:
+            b = get_bot()
+            await b.send_message(settings.channel_id, text, parse_mode=ParseMode.HTML)
+        await mark_weekly_published(db, weekly_id)
     return {"ok": True}

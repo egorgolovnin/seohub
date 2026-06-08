@@ -281,3 +281,38 @@ async def fix_channels(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(DigestChannel).where(DigestChannel.is_active == True))
     active = list(result.scalars().all())
     return {"ok": True, "deactivated": fixed, "active_channels": len(active), "active": [c.username for c in active]}
+
+
+# === Catalogs (public) ===
+
+@router.get("/linkbuilding")
+async def api_linkbuilding(type: str = Query(None), geo: str = Query(None), db: AsyncSession = Depends(get_db)):
+    from app.services.catalog import get_linkbuilding, LB_TYPES
+    data = await get_linkbuilding(db, lb_type=type, geo=geo)
+    return {"ok": True, "count": len(data), "types": LB_TYPES, "data": data}
+
+
+@router.get("/channels")
+async def api_channels(category: str = Query(None), db: AsyncSession = Depends(get_db)):
+    from app.services.catalog import get_seo_channels, CH_CATEGORIES
+    data = await get_seo_channels(db, category=category)
+    return {"ok": True, "count": len(data), "categories": CH_CATEGORIES, "data": data}
+
+
+class LBRequest(BaseModel):
+    telegram: str
+    service: str = ""
+    comment: str = ""
+
+
+@router.post("/linkbuilding-request")
+async def api_lb_request(req: LBRequest):
+    from app.bot.main import notify_admin
+    text = (
+        f"🔗 <b>Заявка на линкбилдинг</b>\n\n"
+        f"📦 Услуга: {req.service or 'не указана'}\n"
+        f"👤 Telegram: {req.telegram}\n"
+        f"💬 Комментарий: {req.comment or 'нет'}"
+    )
+    await notify_admin(text)
+    return {"ok": True}

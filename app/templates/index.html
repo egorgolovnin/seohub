@@ -67,6 +67,8 @@ table{width:100%;border-collapse:collapse;font-size:12px}th{text-align:left;padd
     <button class="nl" onclick="go('seoBot')">SEO-бот</button>
     <button class="nl" onclick="go('amBot')">AM-бот</button>
     <button class="nl" onclick="window.location='/check'">Проверка ссылок</button>
+    <button class="nl" onclick="go('lb')">Линкбилдинг</button>
+    <button class="nl" onclick="go('channels')">SEO-каналы</button>
     <button class="nl" onclick="go('tools')">Тех.инструменты</button>
     <button class="nl" onclick="go('con')">Консьерж</button>
     <button class="nl" onclick="go('union')">Профсоюз</button>
@@ -320,6 +322,34 @@ table{width:100%;border-collapse:collapse;font-size:12px}th{text-align:left;padd
   </div>
 </div>
 
+<!-- LINKBUILDING CATALOG -->
+<div id="lb" class="pg">
+  <h1 class="pt">🔗 Каталог линкбилдинга</h1>
+  <p class="ps">Площадки и сервисы под iGaming: гостевые посты, PBN, крауд, аутрич. Фильтруй по типу и ГЕО, оставляй заявку — подберём под задачу.</p>
+  <div class="tabs" id="lbTabs"></div>
+  <div class="sb"><input id="lbGeo" placeholder="Фильтр по ГЕО (DE, UK, BR...)" oninput="loadLB()"></div>
+  <div id="lbList"><p style="color:var(--t2);font-size:12px">Загрузка...</p></div>
+  <div class="card card-f" style="margin-top:12px">
+    <div style="font-size:13px;font-weight:600;margin-bottom:6px">Нужен линкбилдинг под задачу?</div>
+    <p style="font-size:11px;color:var(--t2);margin-bottom:8px">Опиши ГЕО/нишу — подберём площадки и условия.</p>
+    <div class="g2">
+      <div class="fr"><label>Telegram</label><input id="lb_tg" placeholder="@username"></div>
+      <div class="fr"><label>Услуга / тип</label><input id="lb_service" placeholder="Напр.: гостевые DE"></div>
+    </div>
+    <div class="fr"><label>Комментарий</label><textarea id="lb_comment" placeholder="ГЕО, объём, бюджет..."></textarea></div>
+    <button class="btn btn-p" style="width:100%;font-size:11px" onclick="submitLB()">Оставить заявку →</button>
+    <div id="lb_result" class="lead-res"></div>
+  </div>
+</div>
+
+<!-- SEO CHANNELS CATALOG -->
+<div id="channels" class="pg">
+  <h1 class="pt">📡 Каталог SEO-каналов</h1>
+  <p class="ps">Подборка Telegram-каналов и чатов по SEO, гемблингу, трафику и партнёркам. Фильтруй по категории.</p>
+  <div class="tabs" id="chTabs"></div>
+  <div id="chList"><p style="color:var(--t2);font-size:12px">Загрузка...</p></div>
+</div>
+
 <script>
 const S={"casino.org":{t:"Legend Corp",c:"—",g:"Global",v:"iGaming",m:"Hybrid",o:["casinoonline.de"]},"cardschat.com":{t:"Gotec",c:"—",g:"Global",v:"Poker",m:"CPA/RS",o:["covers.com"]},"sloterman.com":{t:"Big (@bigaffiliate)",c:"@bigaffiliate",g:"RU",v:"iGaming",m:"CPA/RS",o:["bigaff.ru"]},"casinojager.com":{t:"Affilino",c:"—",g:"DE/DACH",v:"iGaming",m:"Listing",o:[]},"seomoneymaker.ru":{t:"STRIJ",c:"@STRIJs",g:"RU",v:"iGaming",m:"—",o:[]},"pokerscout.com":{t:"Finixio",c:"—",g:"Global",v:"Poker",m:"CPA",o:["gameshub.com"]},"rhino.bet":{t:"SharedBet",c:"@djntel",g:"UK",v:"Betting",m:"RS",o:["nrg.bet"]},"muduck.biz":{t:"@igamed",c:"@igamed",g:"RU",v:"iGaming",m:"CPA/RS",o:[]},"speletajiem.com":{t:"SEOBrothers",c:"@playermediasupport",g:"LV/CZ",v:"iGaming",m:"RS",o:["ceskekasino.com"]},"kongebonus.com":{t:"Wedia Group",c:"Nathalie",g:"NO",v:"iGaming",m:"Hybrid",o:[]},"bluff.com":{t:"Bluff Corp",c:"@onlinezra",g:"Global",v:"Crypto",m:"CPA/RS",o:[]}};
 const MK={hosting:[{n:"NetWall",d:"DMCA-proof",p:"Держит абузы",c:"Новый",s:4,pr:"$15/мес",h:1,url:"https://netwall.host"},{n:"Zomro",d:"Основной",p:"Дёшево",c:"DMCA!",s:3,pr:"$5/мес",url:"https://zomro.com"},{n:"Hetzner",d:"EU",p:"Надёжный",c:"Абузы",s:3,pr:"€4/мес",url:"https://hetzner.com"},{n:"Aeza",d:"Cloud",p:"Быстрый",c:"—",s:3,pr:"$3/мес",url:"https://aeza.net"}],links:[{n:"Трастик",d:"Биржа #1",p:"Массово",c:"Качество ±",s:3,pr:"от 50₽",h:1,url:"https://trustik.com"},{n:"LinkBRO",d:"PBN",p:"Качество",c:"Дорого",s:4,pr:"Индив.",url:"https://linkbro.com"}],domains:[{n:"ExpiredDomains",d:"Дропы",p:"Бесплатно",c:"Опыт",s:4,pr:"Free",url:"https://expireddomains.net"},{n:"SpamZilla",d:"Фильтр",p:"Время",c:"$37",s:4,pr:"$37/мес",url:"https://spamzilla.io"},{n:"Namecheap",d:"Регистратор",p:"Удобно",c:"DMCA!",s:2,pr:"$8/год",url:"https://namecheap.com"}],tds:[{n:"Keitaro",d:"#1",p:"Стандарт",c:"Сложно",s:4,pr:"$25/мес",h:1,url:"https://keitaro.io"},{n:"Binom",d:"Трекер",p:"Быстрый",c:"VPS",s:4,pr:"$69/мес",url:"https://binom.org"},{n:"301.st",d:"CF Workers",p:"Без VPS",c:"Beta",s:3,pr:"Beta",url:"https://301.st"}],seo:[{n:"Ahrefs",d:"Бэклинки",p:"Лучший",c:"Дорого",s:5,pr:"$99/мес",h:1,url:"https://ahrefs.com"},{n:"GSC",d:"Мониторинг",p:"Бесплатно",c:"Медленно",s:4,pr:"Free",url:"https://search.google.com/search-console"},{n:"Serpstat",d:"SEO",p:"Дешевле",c:"±",s:3,pr:"$59/мес",url:"https://serpstat.com"}],vpn:[{n:"Bary VPN",d:"Для ТГ в РФ",p:"Работает",c:"—",s:4,pr:"$5/мес",url:"https://baryvpn.org"},{n:"Outline",d:"Self-hosted",p:"Свой",c:"Настройка",s:3,pr:"Free+VPS",url:"https://getoutline.org"}]};
@@ -327,14 +357,89 @@ const KB=[{q:"Как защититься от DMCA?",a:"1. DMCA-щит ($19/м�
 const sR={hi:'Привет! Чем помочь?\n→ Доп. монетизация\n→ Оффер под ГЕО\n→ Проверка ПП\n→ Ставки CPA/RS\n→ Инструменты\n→ Продать/купить сайт\n→ Линки','германия':'🇩🇪 **DE**\nCPA: $10→**$312**→$750 | RS: 60-80%\n\nОфферы: Gambling Craft, Royal Partners (Starda DE)\nКоманды: Affilino, Big (@bigaffiliate)','royal partners':'⚠️ **Royal Partners** — 11.7% негатива\n❌ Кроссмаркетинг ❌ Задержки ❌ Шейв\n✅ Крупная\n💡 Поставь антишейв ($49/мес)','хостинг':'🛡 ✅ NetWall — DMCA-proof\n⚠️ Zomro — дёшево, но DMCA\n❌ Namecheap — блокирует','бурж':'🚀 AT/CH $750, UK $446, CA $339, DE $312\nСтарт: KZ $149, Latam $157','конверсия':'📉 1. Апдейт→GSC 2. Смена лендинга 3. Шейвят→антишейв\n💡 **BBL** — дожим через ТГ. FTD ×3-5','монетизация':'💰 1. **BetBuddy Link** — pop-up→TG→FTD. CPL\n2. **Retention** — RS растёт\n3. **Баннеры** — доход с показов','продать сайт':'🏷 Выстави на купле/продаже. Трафик, доход, ГЕО, цена.','линки':'🔗 Трастик (массово), LinkBRO (качество). В маркетплейсе — условия от команд.','индексация':'⚡ Индексатор $9/мес. 10 URL бесплатно.'};
 const aR={hi:'Привет! Чем помочь?\n→ Пробить сайт\n→ Найти SEO-команду\n→ Ставки CPA/RS\n→ Заявка\n→ Листинг','casino.org':'🔍 **casino.org**\nLegend Corp | Global | Hybrid','команды de':'🇩🇪 Affilino, Big (@bigaffiliate), Legend Corp\nCPA $312, RS 60-80%\n🎯 Консьерж подберёт','ставки':'💰 AT/CH $750, UK $446, CA $339, DE $312, RU $137','заявку':'🎯 Консьерж → 99% ответ.','листинг':'📋 Консьерж → Listing Fee'};
 
-function go(id){document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));document.getElementById(id).classList.add('on');document.querySelectorAll('.nl').forEach(l=>l.classList.remove('on'));window.scrollTo(0,0);if(id==='seoBot'&&!document.getElementById('sCB').innerHTML)iC('seo');if(id==='amBot'&&!document.getElementById('aCB').innerHTML)iC('am')}
+function go(id){document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));document.getElementById(id).classList.add('on');document.querySelectorAll('.nl').forEach(l=>l.classList.remove('on'));window.scrollTo(0,0);if(id==='seoBot'&&!document.getElementById('sCB').innerHTML)iC('seo');if(id==='amBot'&&!document.getElementById('aCB').innerHTML)iC('am');if(id==='lb'&&!window._lbInit){window._lbInit=1;loadLB()}if(id==='channels'&&!window._chInit){window._chInit=1;loadChannels()}}
+
+// ===== Linkbuilding catalog =====
+let lbType='';
+async function loadLB(){
+  const list=document.getElementById('lbList');
+  try{
+    const geo=document.getElementById('lbGeo').value.trim();
+    let url='/api/linkbuilding?';
+    if(lbType)url+='type='+encodeURIComponent(lbType)+'&';
+    if(geo)url+='geo='+encodeURIComponent(geo);
+    const r=await fetch(url);const d=await r.json();
+    if(d.types&&!document.getElementById('lbTabs').innerHTML){
+      const tabs=document.getElementById('lbTabs');
+      tabs.innerHTML='<button class="tab on" onclick="setLBType(\'\',this)">Все</button>'+Object.entries(d.types).map(([k,v])=>`<button class="tab" onclick="setLBType('${k}',this)">${v}</button>`).join('');
+    }
+    const items=d.data||[];
+    if(!items.length){list.innerHTML='<p style="color:var(--t2);font-size:12px">Ничего не найдено по фильтру.</p>';return}
+    list.innerHTML=items.map(it=>{
+      const v=it.verified?'<span class="tag tag-g">✓ проверено</span>':'';
+      const metrics=[];
+      if(it.dr)metrics.push(`<span class="sr-v">DR ${it.dr}</span>`);
+      if(it.traffic)metrics.push(`<span class="sr-v">${(it.traffic/1000).toFixed(0)}k трафик</span>`);
+      if(it.price_from)metrics.push(`<span class="sr-v" style="color:var(--acc)">от $${Math.round(it.price_from)}</span>`);
+      const geos=(it.geos||'').split(',').filter(Boolean).slice(0,8).map(g=>`<span class="tag tag-b">${g.trim()}</span>`).join('');
+      return `<div class="card ${it.verified?'card-f':''}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+          <div><div style="font-size:14px;font-weight:600">${it.name} ${v}</div>
+          <div style="font-size:10px;color:var(--t3);margin-top:1px">${it.type_label}</div></div>
+          <div style="text-align:right;font-size:10px;display:flex;flex-direction:column;gap:2px">${metrics.join('')}</div>
+        </div>
+        ${it.description?`<p style="font-size:11px;color:var(--t2);margin:6px 0;line-height:1.5">${it.description}</p>`:''}
+        <div style="margin:4px 0">${geos}</div>
+        <button class="btn btn-s" style="font-size:10px;margin-top:4px" onclick="reqLB('${(it.name||'').replace(/'/g,'')}')">Оставить заявку →</button>
+      </div>`;
+    }).join('');
+  }catch(e){list.innerHTML='<p style="color:var(--red);font-size:12px">Ошибка загрузки.</p>'}
+}
+function setLBType(t,el){lbType=t;document.querySelectorAll('#lbTabs .tab').forEach(x=>x.classList.remove('on'));el.classList.add('on');loadLB()}
+function reqLB(name){go('lb');document.getElementById('lb_service').value=name;document.getElementById('lb_tg').focus();window.scrollTo(0,document.body.scrollHeight)}
+async function submitLB(){
+  const tg=document.getElementById('lb_tg').value.trim();const service=document.getElementById('lb_service').value.trim();const comment=document.getElementById('lb_comment').value.trim();const res=document.getElementById('lb_result');
+  if(!tg){res.style.display='block';res.style.background='var(--redd)';res.style.color='var(--red)';res.textContent='Укажи Telegram';return}
+  try{const r=await fetch('/api/linkbuilding-request',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({telegram:tg,service:service,comment:comment})});
+  if(r.ok){res.style.display='block';res.style.background='var(--grnd)';res.style.color='var(--grn)';res.textContent='✅ Заявка отправлена! Свяжемся в Telegram.';document.getElementById('lb_tg').value='';document.getElementById('lb_service').value='';document.getElementById('lb_comment').value=''}else{throw new Error()}
+  }catch(e){res.style.display='block';res.style.background='var(--redd)';res.style.color='var(--red)';res.textContent='Ошибка. Попробуй позже.'}
+}
+
+// ===== SEO channels catalog =====
+let chCat='';
+async function loadChannels(){
+  const list=document.getElementById('chList');
+  try{
+    let url='/api/channels?';
+    if(chCat)url+='category='+encodeURIComponent(chCat);
+    const r=await fetch(url);const d=await r.json();
+    if(d.categories&&!document.getElementById('chTabs').innerHTML){
+      const tabs=document.getElementById('chTabs');
+      tabs.innerHTML='<button class="tab on" onclick="setChCat(\'\',this)">Все</button>'+Object.entries(d.categories).map(([k,v])=>`<button class="tab" onclick="setChCat('${k}',this)">${v}</button>`).join('');
+    }
+    const items=d.data||[];
+    if(!items.length){list.innerHTML='<p style="color:var(--t2);font-size:12px">Ничего не найдено.</p>';return}
+    list.innerHTML='<div class="g2">'+items.map(it=>{
+      const subs=it.subscribers?`<span class="sr-v">${(it.subscribers/1000).toFixed(it.subscribers<10000?1:0)}k</span>`:'';
+      return `<div class="card" style="margin-bottom:0">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="font-size:13px;font-weight:600">${it.name}</div>${subs}
+        </div>
+        <div style="margin:3px 0"><span class="tag tag-p">${it.category_label}</span>${it.username?`<span class="tag tag-b">@${it.username}</span>`:''}</div>
+        ${it.description?`<p style="font-size:11px;color:var(--t2);margin:4px 0;line-height:1.5">${it.description}</p>`:''}
+        ${it.url?`<a href="${it.url}" target="_blank" rel="noopener" style="color:var(--acc);font-size:11px;text-decoration:none">Открыть канал →</a>`:''}
+      </div>`;
+    }).join('')+'</div>';
+  }catch(e){list.innerHTML='<p style="color:var(--red);font-size:12px">Ошибка загрузки.</p>'}
+}
+function setChCat(c,el){chCat=c;document.querySelectorAll('#chTabs .tab').forEach(x=>x.classList.remove('on'));el.classList.add('on');loadChannels()}
 function iC(r){const b=document.getElementById(r==='seo'?'sCB':'aCB');const d=r==='seo'?sR:aR;b.innerHTML=`<div class="m m-b"><div class="mb">${d.hi.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')}</div></div>`}
 function sM(r){const iId=r==='seo'?'sI':'aI';const bId=r==='seo'?'sCB':'aCB';const i=document.getElementById(iId);const msg=i.value.trim();if(!msg)return;const b=document.getElementById(bId);b.innerHTML+=`<div class="m m-u fade"><div class="mu">${msg}</div></div>`;i.value='';setTimeout(()=>{let resp='Попробуй конкретнее — ГЕО, ПП или проблему.';const q=msg.toLowerCase();const db=r==='seo'?sR:aR;for(const[k,v]of Object.entries(db)){if(k!=='hi'&&q.includes(k)){resp=v;break}}if(r==='am'){const c=q.replace(/https?:\/\//,'').replace('www.','').replace(/\/$/,'');if(S[c]){const s=S[c];resp=`🔍 **${c}**\n${s.t} | ${s.g} | ${s.m}\nКонтакт: ${s.c}`;}}b.innerHTML+=`<div class="m m-b fade"><div class="mb">${resp.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')}</div></div>`;b.scrollTop=b.scrollHeight},400)}
 function sS(){sM('seo')}function aS(){sM('am')}function qS(m){document.getElementById('sI').value=m;sS()}function qA(m){document.getElementById('aI').value=m;aS()}
 async function init(){
 const resp=await fetch('/api/rates/cpa');const data=await resp.json();const rates=data.data||[];
 document.getElementById('cB2').innerHTML=rates.map(d=>`<tr data-k="${d.geo.toLowerCase()}"><td><b>${d.geo}</b></td><td style="color:var(--grn);font-family:'JetBrains Mono',monospace">$${Math.round(d.min)}</td><td style="color:var(--ylw);font-family:'JetBrains Mono',monospace;font-weight:700">$${Math.round(d.avg)}</td><td style="color:var(--red);font-family:'JetBrains Mono',monospace">$${Math.round(d.max)}</td></tr>`).join('');
-rM('hosting');renderKB()}
+rM('hosting');renderKB();const h=(location.hash||'').replace('#','');if(h==='lb'||h==='channels')go(h)}
 const GA={"германия":"de","немецкий":"de","австрия":"at","швейцария":"ch","великобритания":"uk","англия":"uk","британия":"uk","франция":"fr","испания":"es","италия":"it","нидерланды":"nl","голландия":"nl","бельгия":"be","португалия":"pt","польша":"pl","чехия":"cz","словакия":"sk","хорватия":"hr","словения":"si","венгрия":"hu","румыния":"ro","болгария":"bg","греция":"gr","турция":"tr","финляндия":"fi","швеция":"se","норвегия":"no","дания":"dk","ирландия":"ie","эстония":"ee","латвия":"lv","литва":"lt","россия":"ru","рф":"ru","казахстан":"kz","узбекистан":"uz","беларусь":"by","белоруссия":"by","украина":"ua","бразилия":"br","мексика":"mx","аргентина":"ar","чили":"cl","колумбия":"co","индия":"in","бангладеш":"bd","таиланд":"th","япония":"jp","сингапур":"sg","австралия":"au","новая зеландия":"nz","канада":"ca","сша":"us","америка":"us","штаты":"us","юар":"za","оаэ":"ae","эмираты":"ae","дубай":"ae","germany":"de","austria":"at","switzerland":"ch","united kingdom":"uk","england":"uk","france":"fr","spain":"es","italy":"it","netherlands":"nl","holland":"nl","belgium":"be","portugal":"pt","poland":"pl","czech":"cz","czechia":"cz","hungary":"hu","romania":"ro","bulgaria":"bg","greece":"gr","turkey":"tr","finland":"fi","sweden":"se","norway":"no","denmark":"dk","ireland":"ie","russia":"ru","kazakhstan":"kz","brazil":"br","mexico":"mx","argentina":"ar","india":"in","thailand":"th","japan":"jp","australia":"au","canada":"ca","usa":"us","america":"us","south africa":"za","uae":"ae","dubai":"ae"};
 function gFilt(q){q=q.trim().toLowerCase();if(!q){document.querySelectorAll('#cB2 tr').forEach(r=>r.style.display='');return}
 const codes=new Set();for(const[alias,code]of Object.entries(GA)){if(alias.startsWith(q))codes.add(code)}

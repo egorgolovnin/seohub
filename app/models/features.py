@@ -60,3 +60,35 @@ class PartnerStatsUpload(Base):
     risk_score = Column(Float)  # 0-10, higher = more suspicious
     flags = Column(JSON, default=list)  # list of red flags
     created_at = Column(DateTime, server_default=func.now())
+
+
+class LinkbuildingService(Base):
+    __tablename__ = "linkbuilding_services"
+    id = Column(Integer, primary_key=True)
+    name = Column(String(200), nullable=False)
+    type = Column(String(50))  # guest_post, pbn, crowd, outreach, marketplace, exchange
+    geos = Column(String(300))  # comma-separated GEO/lang markets
+    languages = Column(String(200))
+    dr = Column(Integer)  # domain rating (avg)
+    traffic = Column(Integer)  # monthly organic traffic
+    price_from = Column(Float)  # USD, from
+    contact = Column(String(200))  # telegram / email
+    url = Column(String(500))
+    description = Column(Text)
+    verified = Column(Boolean, default=False)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class SeoChannelCatalog(Base):
+    __tablename__ = "seo_channels_catalog"
+    id = Column(Integer, primary_key=True)
+    name = Column(String(200), nullable=False)
+    username = Column(String(100))  # without @
+    url = Column(String(300))
+    category = Column(String(50))  # seo, gambling, traffic, news, cases, tools, am
+    language = Column(String(20), default="ru")
+    subscribers = Column(Integer)
+    description = Column(Text)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, server_default=func.now())

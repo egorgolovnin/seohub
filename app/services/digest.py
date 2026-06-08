@@ -221,3 +221,29 @@ def format_weekly_digest(summary: str, posts: list[DigestPost]) -> str:
     lines.append(f"\nОпубликовано {len(posts)} постов за неделю")
     lines.append(FOOTER)
     return _clean_text("\n".join(lines))
+
+
+# === Weekly digest: manual post selection flow ===
+
+async def get_posts_by_ids(db: AsyncSession, ids: list[int]) -> list[DigestPost]:
+    """Return posts for the given ids, preserving the order of ids."""
+    if not ids:
+        return []
+    result = await db.execute(select(DigestPost).where(DigestPost.id.in_(ids)))
+    by_id = {p.id: p for p in result.scalars().all()}
+    return [by_id[i] for i in ids if i in by_id]
+
+
+async def get_weekly_by_id(db: AsyncSession, weekly_id: int) -> WeeklyDigest | None:
+    result = await db.execute(select(WeeklyDigest).where(WeeklyDigest.id == weekly_id))
+    return result.scalar_one_or_none()
+
+
+async def mark_weekly_published(db: AsyncSession, weekly_id: int) -> bool:
+    weekly = await get_weekly_by_id(db, weekly_id)
+    if not weekly:
+        return False
+    weekly.status = "published"
+    weekly.published_at = datetime.utcnow()
+    await db.commit()
+    return True
