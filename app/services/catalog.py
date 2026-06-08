@@ -79,16 +79,42 @@ async def get_seo_channels(db: AsyncSession, category: str = None) -> list[dict]
 # ---------- Seeds (run once on startup if tables empty) ----------
 
 _LB_SEED = [
-    ("Tier-1 Guest Posts", "guest_post", "DE,UK,FR,IT,ES,US,CA", "en,de,fr,it,es", 55, 80000, 120, "@bdmseo", "", "Размещение на тематических Tier-1 сайтах казино/беттинг ниши. Белые анкоры, dofollow, индексация в течение 30 дней.", True),
-    ("Casino PBN Network", "pbn", "RU,UA,KZ,UZ,TR,BR", "ru,en,tr,pt", 35, 15000, 45, "@bdmseo", "", "Приватная сетка из 200+ доменов под gambling. Полный контроль анкоров, разные ASN/IP, очищенные домены с историей.", True),
-    ("Crowd Boost", "crowd", "ALL", "ru,en", 0, 0, 15, "@bdmseo", "", "Крауд-маркетинг: форумы, комментарии, Q&A. Естественный ссылочный профиль и трафиковые упоминания бренда.", False),
-    ("Outreach Pro", "outreach", "UK,US,CA,AU,DE,NL", "en,de", 50, 120000, 200, "@bdmseo", "", "Ручной аутрич к реальным сайтам. Согласование анкоров и контента под ваш бренд, переговоры о цене напрямую с вебмастерами.", True),
-    ("LinkMarket iGaming", "marketplace", "DE,ES,IT,FR,PL,PT,GR", "en,de,es,it", 42, 40000, 60, "@bdmseo", "", "Биржа площадок под iGaming с фильтром по DR, трафику, ГЕО и языку. Прозрачные метрики Ahrefs/Semrush.", False),
-    ("Link Swap Club", "exchange", "ALL", "ru,en", 30, 25000, 0, "@bdmseo", "", "Обмен ссылками между проверенными SEO-командами. Трёхсторонние схемы (A→B→C→A), модерация качества.", False),
-    ("EU Casino Editorials", "guest_post", "DE,AT,CH,NL,BE", "de,nl", 48, 60000, 150, "@bdmseo", "", "Редакционные статьи на немецкоязычных площадках. Высокий траст, подходит под YMYL-тематику.", True),
-    ("LatAm Traffic Links", "outreach", "BR,MX,CL,CO,AR,PE", "pt,es", 38, 90000, 70, "@bdmseo", "", "Аутрич по латиноамериканскому рынку. Локальные новостники и спортивные порталы.", False),
-    ("Asia Tier Network", "pbn", "IN,BD,TH,JP,KR,PH", "en", 32, 30000, 40, "@bdmseo", "", "Сетка под азиатские ГЕО. Особенно сильно по IN/BD беттингу.", False),
-    ("Sports Niche Outreach", "outreach", "UK,US,DE,IT,ES,BR", "en,de,it,es,pt", 52, 150000, 180, "@bdmseo", "", "Спортивные и беттинговые порталы. Идеально под прематч/лайв-ставки.", True),
+    # Real iGaming link-building providers (source: AFFCatalog link-building directory).
+    # Leads route to our concierge (@bdmseo); detailed metrics filled where publicly known.
+    ("AWISEE", "outreach", "US,UK,LatAm,APAC,EU", "en,30+", None, None, None, "@bdmseo", "https://awisee.com", "Агентство с 2014, специализация — gambling/казино/iGaming. Гостевые посты и нишевые вставки, 20+ рынков, 30+ языков. Цена по запросу.", True),
+    ("PRPosting", "marketplace", "Global", "en,ru,ua", None, None, None, "@bdmseo", "https://prposting.com", "Биржа гостевых постов: 12000+ площадок, отдельный раздел под казино. Самостоятельный подбор по метрикам.", True),
+    ("Editorial.link", "outreach", "US,UK,CA,AT,EU", "en", None, None, 375, "@bdmseo", "https://editorial.link", "Редакционные ссылки через ручной аутрич, Digital PR, HARO. Работают без предоплаты, в т.ч. по iGaming. От $375 за ссылку.", True),
+    ("GRIT Leaders", "outreach", "Global", "en", None, None, None, "@bdmseo", "", "Под Gambling и Betting: аутрич, крауд из тематических комьюнити, гостевые и PBN-ссылки.", True),
+    ("Rankexplore", "outreach", "BR,UK,DE,ES,IT,NL,PL,PT,US,FR", "en", None, None, 50, "@bdmseo", "", "Ссылки для серых ниш (iGaming, sweeps, nutra). Размещения на главных и вставки в текст. $50-800 за ссылку/год, оплата крипто.", False),
+    ("Getlinksnow", "pbn", "Global", "en,multi", None, None, None, "@bdmseo", "", "7+ лет на международных рынках: казино, беттинг, крипто. Сабмиты, крауд, PBN. Аудит сайта при заказе PBN.", False),
+    ("BackLinker", "outreach", "20+ стран", "en,9", None, None, None, "@bdmseo", "", "Украинский подрядчик: гостевые, сабмиты, крауд, Quora/Reddit. 9 языков, 5000+ площадок. Оплата картой/Payoneer/PayPal/USDT.", False),
+    ("Tier1.shop", "pbn", "Global", "en,ru", None, None, None, "@bdmseo", "", "Ссылки с главных страниц PBN-сети (~4000 сайтов). До 5 внешних ссылок с сайта.", False),
+    ("Bazoom", "marketplace", "Global", "en", None, None, None, "@bdmseo", "https://bazoom.com", "Self-serve платформа линкбилдинга: сам управляешь размещениями, гемблинг среди вертикалей.", False),
+    ("Goblin Links", "outreach", "Global", "en", None, None, None, "@bdmseo", "", "", False),
+    ("WhenIpost", "outreach", "Global", "en", None, None, None, "@bdmseo", "", "", False),
+    ("Link Masters", "outreach", "Global", "en,ru", None, None, None, "@bdmseo", "", "", False),
+    ("Trust1ink", "outreach", "Global", "en,ru", None, None, None, "@bdmseo", "", "", False),
+    ("Soogle", "outreach", "Global", "en,ru", None, None, None, "@bdmseo", "", "", False),
+    ("Shared Domains", "pbn", "Global", "en", None, None, None, "@bdmseo", "", "", False),
+    ("Weblinks Agency", "outreach", "Global", "en", None, None, None, "@bdmseo", "", "", False),
+    ("Mellow Promo", "outreach", "Global", "en,ru", None, None, None, "@bdmseo", "", "", False),
+    ("BlackhatSEO", "crowd", "Global", "en,ru", None, None, None, "@bdmseo", "", "", False),
+    ("TopLinks", "outreach", "Global", "en,ru", None, None, None, "@bdmseo", "", "", False),
+    ("LinkyWay Team", "outreach", "Global", "en,ru", None, None, None, "@bdmseo", "", "", False),
+    ("BootyBoost", "outreach", "Global", "en", None, None, None, "@bdmseo", "", "", False),
+    ("BuyLink", "marketplace", "Global", "en,ru", None, None, None, "@bdmseo", "", "", False),
+    ("WMLinks", "outreach", "Global", "en,ru", None, None, None, "@bdmseo", "", "", False),
+    ("PR-X Links", "outreach", "Global", "en,ru", None, None, None, "@bdmseo", "", "", False),
+    ("GoSeoLinks", "outreach", "Global", "en,ru", None, None, None, "@bdmseo", "", "", False),
+    ("Cryptoboost", "outreach", "Global", "en", None, None, None, "@bdmseo", "", "Линкбилдинг с акцентом на crypto/iGaming.", False),
+    ("A_LinksContent", "outreach", "Global", "en,ru", None, None, None, "@bdmseo", "", "", False),
+    ("Natural Links", "outreach", "Global", "en,ru", None, None, None, "@bdmseo", "", "", False),
+    ("Juicify", "outreach", "Global", "en", None, None, None, "@bdmseo", "", "", False),
+    ("DataParsed", "outreach", "Global", "en,ru", None, None, None, "@bdmseo", "", "", False),
+    ("Victoria's Links", "outreach", "Global", "en,ru", None, None, None, "@bdmseo", "", "", False),
+    ("Get Rankly", "outreach", "Global", "en", None, None, None, "@bdmseo", "", "", False),
+    ("Zhenia Krasnov", "outreach", "Global", "en,ru", None, None, None, "@bdmseo", "", "", False),
+    ("Качественное SEO", "outreach", "RU,CIS", "ru", None, None, None, "@bdmseo", "", "", False),
 ]
 
 _CH_SEED = [
@@ -126,6 +152,18 @@ async def seed_catalogs(db: AsyncSession):
     except Exception as e:
         await db.rollback()
         logger.warning(f"Contact migration skipped: {e}")
+
+    # Remove legacy placeholder/fake linkbuilding rows (one-time cleanup)
+    try:
+        from sqlalchemy import delete
+        _FAKE = ["Tier-1 Guest Posts", "Casino PBN Network", "Crowd Boost", "Outreach Pro",
+                 "LinkMarket iGaming", "Link Swap Club", "EU Casino Editorials",
+                 "LatAm Traffic Links", "Asia Tier Network", "Sports Niche Outreach"]
+        await db.execute(delete(LinkbuildingService).where(LinkbuildingService.name.in_(_FAKE)))
+        await db.commit()
+    except Exception as e:
+        await db.rollback()
+        logger.warning(f"Fake LB cleanup skipped: {e}")
 
     # Linkbuilding
     cnt = (await db.execute(select(func.count(LinkbuildingService.id)))).scalar() or 0
