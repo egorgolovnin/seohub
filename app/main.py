@@ -455,18 +455,12 @@ async def admin_weekly_generate(request: Request):
     post_ids = [int(x) for x in data.get("post_ids", [])]
     if not post_ids:
         return {"ok": False, "error": "Не выбрано ни одного поста"}
-    from app.services.digest import get_posts_by_ids, save_weekly_digest, format_weekly_digest
-    from app.services import ai
+    from app.services.digest import get_posts_by_ids, save_weekly_digest, format_weekly_digest, pick_weekly_intro
     async with async_session() as db:
         posts = await get_posts_by_ids(db, post_ids)
         if not posts:
             return {"ok": False, "error": "Посты не найдены"}
-        posts_text = "\n\n---\n\n".join(
-            [f"[{p.category}] {p.summary or p.original_text[:300]}" for p in posts]
-        )
-        summary = await ai.generate_weekly_summary(posts_text)
-        if not summary:
-            summary = "Итоги недели по выбранным постам."
+        summary = pick_weekly_intro()
         weekly = await save_weekly_digest(db, summary, [p.id for p in posts])
         preview = format_weekly_digest(summary, posts)
     return {"ok": True, "weekly_id": weekly.id, "summary": summary, "preview": preview}
