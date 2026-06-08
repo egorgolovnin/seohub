@@ -215,10 +215,21 @@ def format_digest_approval(post: DigestPost) -> str:
 
 
 def format_weekly_digest(summary: str, posts: list[DigestPost]) -> str:
-    """Format weekly digest for channel — only from published posts."""
-    lines = ["<b>Итоги недели в iGaming SEO</b>\n"]
-    lines.append(summary)
-    lines.append(f"\nОпубликовано {len(posts)} постов за неделю")
+    """Weekly digest: short intro + numbered list of posts, each with a link."""
+    NUM = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"]
+    lines = ["<b>📰 Итоги недели в iGaming SEO</b>\n"]
+    intro = (summary or "").strip()
+    if intro:
+        lines.append(intro)
+        lines.append("")
+    for i, p in enumerate(posts):
+        marker = NUM[i] if i < len(NUM) else f"{i + 1}."
+        blurb = (p.summary or p.original_text or "").strip().replace("\n", " ")
+        if len(blurb) > 200:
+            blurb = blurb[:197].rstrip() + "…"
+        src = _source_link(p)
+        link = f" — <a href='{src}'>читать</a>" if src else ""
+        lines.append(f"{marker} {blurb}{link}")
     lines.append(FOOTER)
     return _clean_text("\n".join(lines))
 
