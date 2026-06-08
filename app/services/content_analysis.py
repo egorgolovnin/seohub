@@ -24,19 +24,24 @@ SEO_CHANNELS_SEED = [
 
 
 async def seed_seo_channels(db: AsyncSession):
-    """Ensure the SEO content-maker channels exist in the unified digest_channels list."""
-    existing = {(r[0] or "").lstrip("@").lower() for r in (await db.execute(select(DigestChannel.username))).all()}
-    added = 0
+    """Ensure SEO content-maker channels exist in digest_channels AND are active
+    (self-heals channels wrongly deactivated by an over-eager health check)."""
+    chans = (await db.execute(select(DigestChannel))).scalars().all()
+    by_uname = {(c.username or "").lstrip("@").lower(): c for c in chans}
+    added = reactivated = 0
     for uname in SEO_CHANNELS_SEED:
         u = uname.lstrip("@")
-        if u.lower() in existing:
-            continue
-        db.add(DigestChannel(channel_id=f"seo_{u}", name=u, username=u, category="seo", is_active=True))
-        existing.add(u.lower())
-        added += 1
-    if added:
+        ex = by_uname.get(u.lower())
+        if ex:
+            if not ex.is_active:
+                ex.is_active = True
+                reactivated += 1
+        else:
+            db.add(DigestChannel(channel_id=f"seo_{u}", name=u, username=u, category="seo", is_active=True))
+            added += 1
+    if added or reactivated:
         await db.commit()
-        logger.info(f"Seeded {added} SEO content-maker channels into digest_channels")
+        logger.info(f"SEO channels seed: +{added} added, {reactivated} reactivated")
 
 
 async def _stats_by_channel(db: AsyncSession) -> dict:

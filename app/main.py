@@ -534,20 +534,23 @@ async def admin_digest_channels_health(request: Request):
         rows = (await db.execute(select(DigestChannel).where(DigestChannel.is_active == True))).scalars().all()
         usernames = [(r.username or "").lstrip("@") for r in rows]
         results = await check_channels_resolve(usernames)
-        broken, ok = [], []
         by_uname = {(r.username or "").lstrip("@"): r for r in rows}
-        for uname, (good, info) in results.items():
-            if good:
+        ok, broken, skipped = [], [], []
+        for uname, (status, info) in results.items():
+            if status == "ok":
                 ok.append({"username": uname, "title": info})
-            else:
+            elif status == "not_found":
                 broken.append({"username": uname, "error": info,
                                "name": by_uname[uname].name if uname in by_uname else uname})
                 if deactivate and uname in by_uname:
                     by_uname[uname].is_active = False
+            else:  # flood / error — transient, leave active
+                skipped.append({"username": uname, "reason": info})
         if deactivate and broken:
             await db.commit()
     return {"ok": True, "checked": len(usernames), "ok_count": len(ok),
-            "broken_count": len(broken), "broken": broken, "deactivated": deactivate}
+            "broken_count": len(broken), "broken": broken,
+            "skipped_count": len(skipped), "skipped": skipped, "deactivated": deactivate}
 
 
 @app.post("/api/admin/digest-channels")

@@ -70,23 +70,49 @@ async def fetch_all_channels(channels: list[dict], hours_back: int = 24) -> list
 
 
 async def check_channels_resolve(usernames: list[str]) -> dict:
-    """Resolve each username via Telethon. Returns {username: (ok: bool, info: str)}."""
+    """Resolve each username via Telethon.
+    Returns {username: (status, info)} where status is:
+      'ok'        — resolved (info = title)
+      'not_found' — username genuinely doesn't exist (safe to deactivate)
+      'flood'     — Telegram rate-limited us (do NOT deactivate; retry later)
+      'error'     — other transient error (do NOT deactivate)
+    """
+    import asyncio
+    from telethon.errors import FloodWaitError
     out = {}
     client = await get_telethon_client()
     if not client:
-        return {u: (False, "telethon not configured") for u in usernames}
+        return {u: ("error", "telethon not configured") for u in usernames}
+    NOT_FOUND = {"UsernameNotOccupiedError", "UsernameInvalidError", "ValueError"}
     try:
-        for u in usernames:
+        for i, u in enumerate(usernames):
             uname = (u or "").lstrip("@").strip()
             if not uname:
-                out[u] = (False, "empty username")
+                out[u] = ("not_found", "empty")
                 continue
             try:
                 entity = await client.get_entity(uname)
-                title = getattr(entity, "title", uname)
-                out[u] = (True, title)
+                out[u] = ("ok", getattr(entity, "title", uname))
+            except FloodWaitError as e:
+                wait = int(getattr(e, "seconds", 0) or 0)
+                if 0 < wait <= 15:
+                    await asyncio.sleep(wait + 1)
+                    try:
+                        entity = await client.get_entity(uname)
+                        out[u] = ("ok", getattr(entity, "title", uname))
+                        await asyncio.sleep(2)
+                        continue
+                    except Exception:
+                        pass
+                # rate-limited hard: stop hammering, leave this + the rest untouched
+                out[u] = ("flood", str(wait))
+                for rest in usernames[i + 1:]:
+                    out[rest] = ("flood", "skipped")
+                break
             except Exception as e:
-                out[u] = (False, type(e).__name__)
+                name = type(e).__name__
+                out[u] = ("not_found", name) if name in NOT_FOUND else ("error", name)
+            await asyncio.sleep(2)
     finally:
         await client.disconnect()
     return out

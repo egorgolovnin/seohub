@@ -367,11 +367,14 @@ async function loadDigCh(){
   }catch(e){console.error(e)}
 }
 async function checkDigChHealth(){
-  const box=document.getElementById('dcHealth');box.style.display='block';box.style.background='var(--bg3)';box.style.color='var(--t2)';box.textContent='🩺 Проверяю каналы через Telethon... это может занять до минуты.';
+  const box=document.getElementById('dcHealth');box.style.display='block';box.style.background='var(--bg3)';box.style.color='var(--t2)';box.textContent='🩺 Проверяю каналы через Telethon с паузами (бережём от rate-limit). Это займёт пару минут, не закрывай вкладку.';
   try{const r=await fetch('/api/admin/digest-channels/health',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,deactivate:true})});const d=await r.json();
   if(!d.ok){box.style.background='var(--redd)';box.style.color='var(--red)';box.textContent='Ошибка проверки (Telethon не настроен?)';return}
-  if(d.broken_count===0){box.style.background='var(--grnd)';box.style.color='var(--grn)';box.textContent=`✅ Все ${d.checked} каналов живые, чистить нечего.`}
-  else{box.style.background='var(--redd)';box.style.color='var(--red)';box.innerHTML=`Проверено ${d.checked}, живых ${d.ok_count}, битых ${d.broken_count} — выключены:<br>`+d.broken.map(b=>`• @${b.username} <span style="color:var(--t3)">(${b.error})</span>`).join('<br>')}
+  if(d.broken_count===0&&(!d.skipped_count)){box.style.background='var(--grnd)';box.style.color='var(--grn)';box.textContent=`✅ Все ${d.checked} каналов живые, чистить нечего.`}
+  else{box.style.background=d.broken_count?'var(--redd)':'var(--bg3)';box.style.color=d.broken_count?'var(--red)':'var(--t2)';let html=`Проверено ${d.checked}, живых ${d.ok_count}.`;
+    if(d.broken_count){html+=`<br>❌ Битых ${d.broken_count} (не существуют) — выключены:<br>`+d.broken.map(b=>`• @${b.username} <span style="color:var(--t3)">(${b.error})</span>`).join('<br>')}
+    if(d.skipped_count){html+=`<br>⏳ Пропущено ${d.skipped_count} (Telegram rate-limit, НЕ выключены) — повтори проверку через пару минут.`}
+    box.innerHTML=html}
   loadDigCh();
   }catch(e){box.style.background='var(--redd)';box.style.color='var(--red)';box.textContent='Ошибка сети'}
 }
