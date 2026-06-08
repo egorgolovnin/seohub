@@ -73,7 +73,6 @@ td input.geo-input{width:50px;text-align:center;text-transform:uppercase}
       <button class="nav-btn on" onclick="showPage('analytics',this)">Аналитика</button>
       <button class="nav-btn" onclick="showPage('rates',this)">Ставки CPA</button>
       <button class="nav-btn" onclick="showPage('lb',this)">Линкбилдинг</button>
-      <button class="nav-btn" onclick="showPage('channels',this)">SEO-каналы</button>
       <button class="nav-btn" onclick="showPage('weekly',this)">Недельный дайджест</button>
       <button class="nav-btn" onclick="showPage('digch',this)">Каналы дайджеста</button>
     </div>
@@ -197,13 +196,15 @@ td input.geo-input{width:50px;text-align:center;text-transform:uppercase}
       <div id="dcList"></div>
       <div class="section" style="margin-top:16px">
         <div class="section-title">Добавить канал</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:6px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">
           <input id="ndc_username" placeholder="username (без @)">
           <input id="ndc_name" placeholder="Название (опц.)">
-          <select id="ndc_category"><option value="seo">SEO</option><option value="news">Новости</option></select>
+          <select id="ndc_category"><option value="seo">SEO</option><option value="gambling">Gambling</option><option value="traffic">Трафик</option><option value="news">Новости</option><option value="cases">Кейсы</option><option value="tools">Инструменты</option><option value="am">AM / ПП</option></select>
+          <input id="ndc_subscribers" type="number" placeholder="Подписчиков (опц.)">
+          <textarea id="ndc_desc" placeholder="Описание для каталога на сайте (опц.)" style="grid-column:1/3"></textarea>
         </div>
         <button class="btn btn-p btn-sm" onclick="addDigCh()">Добавить</button>
-        <p style="font-size:10px;color:var(--t2);margin-top:6px">Можно вставить несколько usernames через запятую или с новой строки.</p>
+        <p style="font-size:10px;color:var(--t2);margin-top:6px">Можно вставить несколько usernames через запятую или с новой строки (описание/подписчики применятся только при добавлении одного). Категория «SEO»/«Новости» влияет и на парсинг дайджеста, и на фильтр в каталоге на сайте.</p>
       </div>
     </div>
   </div>
@@ -328,7 +329,7 @@ async function publishWeekly(){
 }
 
 // ===== Digest channels =====
-const DC_CATS={seo:'SEO',news:'Новости'};
+const DC_CATS={seo:'SEO',gambling:'Gambling',traffic:'Трафик',news:'Новости',cases:'Кейсы',tools:'Инструменты',am:'AM/ПП'};
 async function loadDigCh(){
   try{const r=await fetch(`/api/admin/digest-channels?token=${token}`);const d=await r.json();if(!d.ok)return;
   document.getElementById('dcActive').textContent=d.active;document.getElementById('dcTotal').textContent=d.total;
@@ -345,15 +346,18 @@ async function checkDigChHealth(){
   }catch(e){box.style.background='var(--redd)';box.style.color='var(--red)';box.textContent='Ошибка сети'}
 }
 async function addDigCh(){
-  const raw=document.getElementById('ndc_username').value.trim();const name=document.getElementById('ndc_name').value.trim();const cat=document.getElementById('ndc_category').value;
+  const raw=document.getElementById('ndc_username').value.trim();const name=document.getElementById('ndc_name').value.trim();const cat=document.getElementById('ndc_category').value;const desc=document.getElementById('ndc_desc').value.trim();const subs=document.getElementById('ndc_subscribers').value;
   if(!raw){showToast('Укажи username',false);return}
   const usernames=raw.split(/[\s,]+/).map(u=>u.replace('@','').trim()).filter(Boolean);
+  const single=usernames.length===1;
   let added=0;
   for(const u of usernames){
-    try{const r=await fetch('/api/admin/digest-channels',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,username:u,name:usernames.length===1?name:'',category:cat})});const d=await r.json();if(d.ok)added++}catch(e){}
+    const body={token,username:u,category:cat};
+    if(single){body.name=name;body.description=desc;body.subscribers=subs}
+    try{const r=await fetch('/api/admin/digest-channels',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json();if(d.ok)added++}catch(e){}
   }
   showToast(`Добавлено: ${added}`,added>0);
-  document.getElementById('ndc_username').value='';document.getElementById('ndc_name').value='';
+  ['ndc_username','ndc_name','ndc_desc','ndc_subscribers'].forEach(i=>document.getElementById(i).value='');
   loadDigCh();
 }
 async function toggleDigCh(id,active){try{const r=await fetch(`/api/admin/digest-channels/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,is_active:!!active})});const d=await r.json();if(d.ok)loadDigCh()}catch(e){}}

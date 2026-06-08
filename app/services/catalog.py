@@ -51,25 +51,29 @@ async def get_linkbuilding(db: AsyncSession, lb_type: str = None, geo: str = Non
     return out
 
 
-# ---------- SEO channels ----------
+# ---------- SEO channels (public catalog = live digest channels) ----------
 
 async def get_seo_channels(db: AsyncSession, category: str = None) -> list[dict]:
-    q = select(SeoChannelCatalog).where(SeoChannelCatalog.is_active == True)
+    q = select(DigestChannel).where(DigestChannel.is_active == True)
     if category:
-        q = q.where(SeoChannelCatalog.category == category)
-    q = q.order_by(SeoChannelCatalog.subscribers.desc().nullslast())
+        q = q.where(DigestChannel.category == category)
+    q = q.order_by(DigestChannel.subscribers.desc().nullslast(), DigestChannel.name)
     result = await db.execute(q)
     rows = result.scalars().all()
-    return [
-        {
-            "id": r.id, "name": r.name, "username": r.username,
-            "url": r.url or (f"https://t.me/{r.username}" if r.username else ""),
+    out = []
+    for r in rows:
+        uname = (r.username or "").lstrip("@")
+        if not uname:
+            continue
+        out.append({
+            "id": r.id, "name": r.name, "username": uname,
+            "url": f"https://t.me/{uname}",
             "category": r.category, "category_label": CH_CATEGORIES.get(r.category, r.category),
-            "language": r.language, "subscribers": r.subscribers,
-            "description": r.description,
-        }
-        for r in rows
-    ]
+            "language": "ru",
+            "subscribers": getattr(r, "subscribers", None),
+            "description": getattr(r, "description", "") or "",
+        })
+    return out
 
 
 # ---------- Seeds (run once on startup if tables empty) ----------
@@ -100,6 +104,16 @@ _CH_SEED = [
 
 
 async def seed_catalogs(db: AsyncSession):
+    # --- Schema migrations (idempotent) ---
+    from sqlalchemy import text
+    try:
+        await db.execute(text("ALTER TABLE digest_channels ADD COLUMN IF NOT EXISTS description TEXT"))
+        await db.execute(text("ALTER TABLE digest_channels ADD COLUMN IF NOT EXISTS subscribers INTEGER"))
+        await db.commit()
+    except Exception as e:
+        await db.rollback()
+        logger.warning(f"digest_channels migration skipped: {e}")
+
     # Migrate any legacy contact handle to current one (idempotent)
     try:
         from sqlalchemy import update
@@ -110,6 +124,7 @@ async def seed_catalogs(db: AsyncSession):
         )
         await db.commit()
     except Exception as e:
+        await db.rollback()
         logger.warning(f"Contact migration skipped: {e}")
 
     # Linkbuilding
@@ -123,30 +138,5 @@ async def seed_catalogs(db: AsyncSession):
             ))
         await db.commit()
         logger.info(f"Seeded {len(_LB_SEED)} linkbuilding services")
-
-    # SEO channels: curated + pull active digest channels
-    cnt = (await db.execute(select(func.count(SeoChannelCatalog.id)))).scalar() or 0
-    if cnt == 0:
-        seen = set()
-        for name, username, cat, lang, subs, desc in _CH_SEED:
-            seen.add(username.lower())
-            db.add(SeoChannelCatalog(
-                name=name, username=username, url=f"https://t.me/{username}",
-                category=cat, language=lang, subscribers=subs, description=desc, is_active=True,
-            ))
-        # import active digest channels not already present
-        dch = (await db.execute(
-            select(DigestChannel).where(DigestChannel.is_active == True)
-        )).scalars().all()
-        for ch in dch:
-            uname = (ch.username or "").lstrip("@").lower()
-            if not uname or uname in seen:
-                continue
-            seen.add(uname)
-            db.add(SeoChannelCatalog(
-                name=ch.name, username=uname, url=f"https://t.me/{uname}",
-                category=ch.category or "seo", language="ru", subscribers=None,
-                description="", is_active=True,
-            ))
-        await db.commit()
-        logger.info("Seeded SEO channels catalog")
+    # NOTE: SEO channels catalog now sources directly from active digest_channels
+    #       (see get_seo_channels), so no separate seeding here.

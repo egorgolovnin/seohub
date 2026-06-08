@@ -513,6 +513,8 @@ async def admin_get_digest_channels(token: str = ""):
             "id": r.id, "name": r.name, "username": (r.username or "").lstrip("@"),
             "category": r.category, "is_active": r.is_active,
             "posts": counts.get(key, 0),
+            "description": getattr(r, "description", "") or "",
+            "subscribers": getattr(r, "subscribers", None),
         })
     return {"ok": True, "items": items, "active": sum(1 for r in rows if r.is_active), "total": len(rows)}
 
@@ -556,6 +558,11 @@ async def admin_add_digest_channel(request: Request):
     uname = (data.get("username", "") or "").lstrip("@").strip()
     name = (data.get("name", "") or uname).strip()
     cat = data.get("category", "seo")
+    desc = data.get("description", "") or ""
+    def _i(v):
+        try: return int(v)
+        except: return None
+    subs = _i(data.get("subscribers"))
     if not uname:
         return {"ok": False, "error": "username обязателен"}
     async with async_session() as db:
@@ -564,10 +571,13 @@ async def admin_add_digest_channel(request: Request):
             exists.is_active = True
             if name: exists.name = name
             exists.category = cat
+            if desc: exists.description = desc
+            if subs is not None: exists.subscribers = subs
             await db.commit()
             return {"ok": True, "id": exists.id, "reactivated": True}
         maxid = (await db.execute(select(func.max(DigestChannel.id)))).scalar() or 0
-        ch = DigestChannel(channel_id=str(maxid + 1000), name=name, username=uname, category=cat, is_active=True)
+        ch = DigestChannel(channel_id=str(maxid + 1000), name=name, username=uname,
+                           category=cat, description=desc, subscribers=subs, is_active=True)
         db.add(ch)
         await db.commit()
         await db.refresh(ch)
@@ -588,6 +598,10 @@ async def admin_update_digest_channel(item_id: int, request: Request):
         if "name" in data: item.name = data["name"]
         if "category" in data: item.category = data["category"]
         if "username" in data: item.username = (data["username"] or "").lstrip("@").strip()
+        if "description" in data: item.description = data["description"]
+        if "subscribers" in data:
+            try: item.subscribers = int(data["subscribers"])
+            except: pass
         if "is_active" in data: item.is_active = bool(data["is_active"])
         await db.commit()
     return {"ok": True}
