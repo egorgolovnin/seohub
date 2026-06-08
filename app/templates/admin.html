@@ -75,6 +75,7 @@ td input.geo-input{width:50px;text-align:center;text-transform:uppercase}
       <button class="nav-btn" onclick="showPage('lb',this)">Линкбилдинг</button>
       <button class="nav-btn" onclick="showPage('channels',this)">SEO-каналы</button>
       <button class="nav-btn" onclick="showPage('weekly',this)">Недельный дайджест</button>
+      <button class="nav-btn" onclick="showPage('digch',this)">Каналы дайджеста</button>
     </div>
 
     <!-- Analytics Page -->
@@ -182,6 +183,29 @@ td input.geo-input{width:50px;text-align:center;text-transform:uppercase}
         <button class="btn btn-p" style="margin-top:10px" onclick="publishWeekly()">Опубликовать в канал</button>
       </div>
     </div>
+
+    <!-- Digest Channels Page -->
+    <div class="page" id="pg-digch">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div class="section-title" style="margin:0">Каналы дайджеста (<span id="dcActive">0</span> активных / <span id="dcTotal">0</span>)</div>
+        <div style="display:flex;gap:6px">
+          <button class="btn" onclick="loadDigCh()">Обновить</button>
+          <button class="btn btn-p" onclick="checkDigChHealth()">🩺 Проверить и почистить</button>
+        </div>
+      </div>
+      <div id="dcHealth" style="display:none;margin-bottom:10px;padding:10px;border-radius:8px;font-size:12px"></div>
+      <div id="dcList"></div>
+      <div class="section" style="margin-top:16px">
+        <div class="section-title">Добавить канал</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:6px">
+          <input id="ndc_username" placeholder="username (без @)">
+          <input id="ndc_name" placeholder="Название (опц.)">
+          <select id="ndc_category"><option value="seo">SEO</option><option value="news">Новости</option></select>
+        </div>
+        <button class="btn btn-p btn-sm" onclick="addDigCh()">Добавить</button>
+        <p style="font-size:10px;color:var(--t2);margin-top:6px">Можно вставить несколько usernames через запятую или с новой строки.</p>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -192,7 +216,7 @@ let token='',currentDays=1,ratesCount=0;
 
 function showToast(msg,ok){const t=document.getElementById('toast');t.textContent=msg;t.className='toast '+(ok?'ok':'err');t.style.display='block';setTimeout(()=>t.style.display='none',2000)}
 
-function showPage(name,el){document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('on'));el.classList.add('on');document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));document.getElementById('pg-'+name).classList.add('on');if(name==='rates')loadRates();if(name==='analytics')loadStats();if(name==='lb')loadLBAdmin();if(name==='channels')loadChAdmin();if(name==='weekly')loadWeekly()}
+function showPage(name,el){document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('on'));el.classList.add('on');document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));document.getElementById('pg-'+name).classList.add('on');if(name==='rates')loadRates();if(name==='analytics')loadStats();if(name==='lb')loadLBAdmin();if(name==='channels')loadChAdmin();if(name==='weekly')loadWeekly();if(name==='digch')loadDigCh()}
 
 async function doLogin(){
   const user=document.getElementById('loginUser').value,pass=document.getElementById('loginPass').value;
@@ -302,6 +326,38 @@ async function publishWeekly(){
   if(!confirm('Опубликовать дайджест в канал?'))return;
   try{const r=await fetch('/api/admin/weekly/publish',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,weekly_id:wkWeeklyId})});const d=await r.json();if(d.ok){showToast('Опубликовано!',true);document.getElementById('wkPreviewWrap').style.display='none';loadWeekly()}else{showToast(d.error||'Ошибка',false)}}catch(e){showToast('Ошибка',false)}
 }
+
+// ===== Digest channels =====
+const DC_CATS={seo:'SEO',news:'Новости'};
+async function loadDigCh(){
+  try{const r=await fetch(`/api/admin/digest-channels?token=${token}`);const d=await r.json();if(!d.ok)return;
+  document.getElementById('dcActive').textContent=d.active;document.getElementById('dcTotal').textContent=d.total;
+  document.getElementById('dcList').innerHTML=d.items.map(it=>`<div class="card" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:5px;opacity:${it.is_active?1:0.5}"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="min-width:0"><b style="font-size:12px">${it.name}</b> <span style="color:var(--t3);font-size:11px">@${it.username||'—'} · ${DC_CATS[it.category]||it.category} · ${it.posts} постов${it.is_active?'':' · ❌ выкл'}</span></div><div style="display:flex;gap:4px;flex-shrink:0"><button class="btn btn-sm" onclick="toggleDigCh(${it.id},${it.is_active?0:1})">${it.is_active?'Выкл':'Вкл'}</button><button class="btn btn-d btn-sm" onclick="delDigCh(${it.id})">✕</button></div></div></div>`).join('');
+  }catch(e){console.error(e)}
+}
+async function checkDigChHealth(){
+  const box=document.getElementById('dcHealth');box.style.display='block';box.style.background='var(--bg3)';box.style.color='var(--t2)';box.textContent='🩺 Проверяю каналы через Telethon... это может занять до минуты.';
+  try{const r=await fetch('/api/admin/digest-channels/health',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,deactivate:true})});const d=await r.json();
+  if(!d.ok){box.style.background='var(--redd)';box.style.color='var(--red)';box.textContent='Ошибка проверки (Telethon не настроен?)';return}
+  if(d.broken_count===0){box.style.background='var(--grnd)';box.style.color='var(--grn)';box.textContent=`✅ Все ${d.checked} каналов живые, чистить нечего.`}
+  else{box.style.background='var(--redd)';box.style.color='var(--red)';box.innerHTML=`Проверено ${d.checked}, живых ${d.ok_count}, битых ${d.broken_count} — выключены:<br>`+d.broken.map(b=>`• @${b.username} <span style="color:var(--t3)">(${b.error})</span>`).join('<br>')}
+  loadDigCh();
+  }catch(e){box.style.background='var(--redd)';box.style.color='var(--red)';box.textContent='Ошибка сети'}
+}
+async function addDigCh(){
+  const raw=document.getElementById('ndc_username').value.trim();const name=document.getElementById('ndc_name').value.trim();const cat=document.getElementById('ndc_category').value;
+  if(!raw){showToast('Укажи username',false);return}
+  const usernames=raw.split(/[\s,]+/).map(u=>u.replace('@','').trim()).filter(Boolean);
+  let added=0;
+  for(const u of usernames){
+    try{const r=await fetch('/api/admin/digest-channels',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,username:u,name:usernames.length===1?name:'',category:cat})});const d=await r.json();if(d.ok)added++}catch(e){}
+  }
+  showToast(`Добавлено: ${added}`,added>0);
+  document.getElementById('ndc_username').value='';document.getElementById('ndc_name').value='';
+  loadDigCh();
+}
+async function toggleDigCh(id,active){try{const r=await fetch(`/api/admin/digest-channels/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,is_active:!!active})});const d=await r.json();if(d.ok)loadDigCh()}catch(e){}}
+async function delDigCh(id){if(!confirm('Удалить канал из дайджеста?'))return;try{const r=await fetch(`/api/admin/digest-channels/${id}?token=${token}`,{method:'DELETE'});const d=await r.json();if(d.ok){showToast('Удалено',true);loadDigCh()}}catch(e){}}
 
 document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
 </script>

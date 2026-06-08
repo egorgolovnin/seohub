@@ -487,3 +487,122 @@ async def admin_weekly_publish(request: Request):
             await b.send_message(settings.channel_id, text, parse_mode=ParseMode.HTML)
         await mark_weekly_published(db, weekly_id)
     return {"ok": True}
+
+
+# ============ ADMIN: Digest channels management ============
+
+@app.get("/api/admin/digest-channels")
+async def admin_get_digest_channels(token: str = ""):
+    if not _check_admin_token(token):
+        return {"ok": False}
+    from app.models.models import DigestChannel, DigestPost
+    from sqlalchemy import select, func
+    async with async_session() as db:
+        rows = (await db.execute(select(DigestChannel).order_by(DigestChannel.is_active.desc(), DigestChannel.id))).scalars().all()
+        # post counts per channel username
+        counts = {}
+        cres = await db.execute(
+            select(DigestPost.channel_username, func.count(DigestPost.id)).group_by(DigestPost.channel_username)
+        )
+        for uname, c in cres.all():
+            counts[(uname or "").lstrip("@").lower()] = c
+    items = []
+    for r in rows:
+        key = (r.username or "").lstrip("@").lower()
+        items.append({
+            "id": r.id, "name": r.name, "username": (r.username or "").lstrip("@"),
+            "category": r.category, "is_active": r.is_active,
+            "posts": counts.get(key, 0),
+        })
+    return {"ok": True, "items": items, "active": sum(1 for r in rows if r.is_active), "total": len(rows)}
+
+
+@app.post("/api/admin/digest-channels/health")
+async def admin_digest_channels_health(request: Request):
+    data = await request.json()
+    if not _check_admin_token(data.get("token", "")):
+        return {"ok": False}
+    deactivate = bool(data.get("deactivate", True))
+    from app.models.models import DigestChannel
+    from sqlalchemy import select
+    from app.services.parser import check_channels_resolve
+    async with async_session() as db:
+        rows = (await db.execute(select(DigestChannel).where(DigestChannel.is_active == True))).scalars().all()
+        usernames = [(r.username or "").lstrip("@") for r in rows]
+        results = await check_channels_resolve(usernames)
+        broken, ok = [], []
+        by_uname = {(r.username or "").lstrip("@"): r for r in rows}
+        for uname, (good, info) in results.items():
+            if good:
+                ok.append({"username": uname, "title": info})
+            else:
+                broken.append({"username": uname, "error": info,
+                               "name": by_uname[uname].name if uname in by_uname else uname})
+                if deactivate and uname in by_uname:
+                    by_uname[uname].is_active = False
+        if deactivate and broken:
+            await db.commit()
+    return {"ok": True, "checked": len(usernames), "ok_count": len(ok),
+            "broken_count": len(broken), "broken": broken, "deactivated": deactivate}
+
+
+@app.post("/api/admin/digest-channels")
+async def admin_add_digest_channel(request: Request):
+    data = await request.json()
+    if not _check_admin_token(data.get("token", "")):
+        return {"ok": False}
+    from app.models.models import DigestChannel
+    from sqlalchemy import select, func
+    uname = (data.get("username", "") or "").lstrip("@").strip()
+    name = (data.get("name", "") or uname).strip()
+    cat = data.get("category", "seo")
+    if not uname:
+        return {"ok": False, "error": "username обязателен"}
+    async with async_session() as db:
+        exists = (await db.execute(select(DigestChannel).where(DigestChannel.username == uname))).scalar_one_or_none()
+        if exists:
+            exists.is_active = True
+            if name: exists.name = name
+            exists.category = cat
+            await db.commit()
+            return {"ok": True, "id": exists.id, "reactivated": True}
+        maxid = (await db.execute(select(func.max(DigestChannel.id)))).scalar() or 0
+        ch = DigestChannel(channel_id=str(maxid + 1000), name=name, username=uname, category=cat, is_active=True)
+        db.add(ch)
+        await db.commit()
+        await db.refresh(ch)
+    return {"ok": True, "id": ch.id}
+
+
+@app.put("/api/admin/digest-channels/{item_id}")
+async def admin_update_digest_channel(item_id: int, request: Request):
+    data = await request.json()
+    if not _check_admin_token(data.get("token", "")):
+        return {"ok": False}
+    from app.models.models import DigestChannel
+    from sqlalchemy import select
+    async with async_session() as db:
+        item = (await db.execute(select(DigestChannel).where(DigestChannel.id == item_id))).scalar_one_or_none()
+        if not item:
+            return {"ok": False, "error": "not found"}
+        if "name" in data: item.name = data["name"]
+        if "category" in data: item.category = data["category"]
+        if "username" in data: item.username = (data["username"] or "").lstrip("@").strip()
+        if "is_active" in data: item.is_active = bool(data["is_active"])
+        await db.commit()
+    return {"ok": True}
+
+
+@app.delete("/api/admin/digest-channels/{item_id}")
+async def admin_delete_digest_channel(item_id: int, token: str = ""):
+    if not _check_admin_token(token):
+        return {"ok": False}
+    from app.models.models import DigestChannel
+    from sqlalchemy import select
+    async with async_session() as db:
+        item = (await db.execute(select(DigestChannel).where(DigestChannel.id == item_id))).scalar_one_or_none()
+        if not item:
+            return {"ok": False, "error": "not found"}
+        await db.delete(item)
+        await db.commit()
+    return {"ok": True}

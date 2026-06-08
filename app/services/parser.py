@@ -67,3 +67,26 @@ async def fetch_all_channels(channels: list[dict], hours_back: int = 24) -> list
     finally:
         await client.disconnect()
     return all_posts
+
+
+async def check_channels_resolve(usernames: list[str]) -> dict:
+    """Resolve each username via Telethon. Returns {username: (ok: bool, info: str)}."""
+    out = {}
+    client = await get_telethon_client()
+    if not client:
+        return {u: (False, "telethon not configured") for u in usernames}
+    try:
+        for u in usernames:
+            uname = (u or "").lstrip("@").strip()
+            if not uname:
+                out[u] = (False, "empty username")
+                continue
+            try:
+                entity = await client.get_entity(uname)
+                title = getattr(entity, "title", uname)
+                out[u] = (True, title)
+            except Exception as e:
+                out[u] = (False, type(e).__name__)
+    finally:
+        await client.disconnect()
+    return out
